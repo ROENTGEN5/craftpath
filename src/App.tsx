@@ -1,7 +1,47 @@
 import { useState, useEffect, useRef } from 'react'
 import { useStore } from './store'
 import { Screen, Tab, Nav, Hobby, Milestone, PracticeSession } from './types'
-import { animateFadeSlideUp, animateModalIn, animateBounce } from './utils/animations'
+import {
+  animateFadeSlideUp,
+  animateModalIn,
+  animateBounce,
+  animateJelly,
+  animateCounter,
+  animateProgressBar,
+  spawnParticleBurst,
+  triggerCelebration,
+  applyCardTilt,
+  resetCardTilt,
+} from './utils/animations'
+
+/* ─── 3D Magnetic Tilt Card Component ─── */
+function TiltCard({
+  children,
+  className = '',
+  style = {},
+  onClick,
+}: {
+  children: React.ReactNode
+  className?: string
+  style?: React.CSSProperties
+  onClick?: (e: React.MouseEvent<HTMLDivElement>) => void
+}) {
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  return (
+    <div
+      ref={cardRef}
+      onMouseMove={(e) => cardRef.current && applyCardTilt(cardRef.current, e)}
+      onMouseLeave={() => cardRef.current && resetCardTilt(cardRef.current)}
+      onClick={onClick}
+      style={style}
+      className={`tilt-card relative overflow-hidden ${className}`}
+    >
+      <div className="tilt-card-sheen" />
+      <div className="tilt-3d-depth h-full w-full">{children}</div>
+    </div>
+  )
+}
 
 /* ─── Color Tokens ─── */
 const SAGE = '#6E8B6B'
@@ -85,12 +125,29 @@ const EXPLORE_CRAFTS = [
 ]
 
 /* ─── Shared Checkbox Component ─── */
-function Checkbox({ checked, color, onToggle }: { checked: boolean; color: string; onToggle: () => void }) {
+function Checkbox({
+  checked,
+  color,
+  onToggle,
+}: {
+  checked: boolean
+  color: string
+  onToggle: () => void
+}) {
   const boxRef = useRef<HTMLDivElement>(null)
 
-  const handleToggle = () => {
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
     if (boxRef.current) {
-      animateBounce(boxRef.current)
+      animateJelly(boxRef.current)
+      if (!checked) {
+        const rect = boxRef.current.getBoundingClientRect()
+        spawnParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, {
+          colors: [color, '#CC8F3F', '#6E8B6B', '#FFD166'],
+          count: 14,
+          spread: 60,
+        })
+      }
     }
     onToggle()
   }
@@ -98,23 +155,24 @@ function Checkbox({ checked, color, onToggle }: { checked: boolean; color: strin
   return (
     <button
       onClick={handleToggle}
-      className="shrink-0 p-0 bg-transparent border-none cursor-pointer flex items-center justify-center transition-transform active:scale-95"
+      className="shrink-0 p-0 bg-transparent border-none cursor-pointer flex items-center justify-center transition-transform active:scale-90"
       aria-label="Toggle checkpoint"
     >
       <div
         ref={boxRef}
         style={{
-          width: 20,
-          height: 20,
-          borderRadius: 6,
+          width: 22,
+          height: 22,
+          borderRadius: 7,
           border: `2px solid ${checked ? color : '#CEC8BF'}`,
           backgroundColor: checked ? color : 'transparent',
+          boxShadow: checked ? `0 2px 8px ${color}50` : 'none',
         }}
-        className="flex items-center justify-center transition-all duration-150"
+        className="flex items-center justify-center transition-all duration-200 hover:scale-105"
       >
         {checked && (
-          <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
-            <path d="M1 3.5L4 6.5L10 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <svg width="12" height="9" viewBox="0 0 11 8" fill="none">
+            <path d="M1 3.5L4 6.5L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         )}
       </div>
@@ -218,7 +276,14 @@ function OnboardingScreen({
                 <button
                   type="button"
                   key={item.name}
-                  onClick={() => {
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    spawnParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, {
+                      colors: ['#6E8B6B', '#CC8F3F', '#D5CEC4'],
+                      count: 10,
+                      spread: 45,
+                    })
+                    animateJelly(e.currentTarget)
                     setHobby(item.name)
                     setCategory(item.category)
                   }}
@@ -253,7 +318,13 @@ function OnboardingScreen({
             <button
               type="submit"
               disabled={!name.trim()}
-              className="w-full bg-[#6E8B6B] hover:bg-[#5E795B] disabled:opacity-50 text-white font-bold py-4 px-6 rounded-2xl text-base shadow-md shadow-[#6E8B6B]/30 transition-all cursor-pointer active:scale-98"
+              onClick={(e) => {
+                if (name.trim()) {
+                  triggerCelebration(e.clientX, e.clientY)
+                  animateJelly(e.currentTarget)
+                }
+              }}
+              className="w-full bg-[#6E8B6B] hover:bg-[#5E795B] disabled:opacity-50 text-white font-bold py-4 px-6 rounded-2xl text-base shadow-md shadow-[#6E8B6B]/30 transition-all cursor-pointer active:scale-95"
             >
               Create Account & Enter Studio ✨
             </button>
@@ -325,15 +396,20 @@ function AccountPickerScreen({
         {/* Account List */}
         <div className="space-y-3 mb-6">
           {accounts.map((account) => (
-            <div
+            <TiltCard
               key={account.id}
-              className="account-card w-full flex items-center gap-3 p-4 rounded-2xl bg-[#FAF7F2] border border-[#EAE4DC] hover:border-[#6E8B6B] hover:shadow-md transition-all group"
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                spawnParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, {
+                  colors: [account.avatarColor, '#6E8B6B', '#CC8F3F', '#FFD166'],
+                  count: 16,
+                })
+                animateJelly(e.currentTarget)
+                onSelectAccount(account.id)
+              }}
+              className="account-card w-full flex items-center gap-3 p-4 rounded-2xl bg-[#FAF7F2] border border-[#EAE4DC] hover:border-[#6E8B6B] hover:shadow-md transition-all group cursor-pointer"
             >
-              <button
-                type="button"
-                onClick={() => onSelectAccount(account.id)}
-                className="flex items-center gap-4 flex-1 min-w-0 text-left cursor-pointer bg-transparent border-none p-0"
-              >
+              <div className="flex items-center gap-4 flex-1 min-w-0 text-left">
                 {/* Avatar */}
                 <div
                   className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm transition-transform group-hover:scale-105"
@@ -350,7 +426,7 @@ function AccountPickerScreen({
                 <svg className="w-5 h-5 text-[#C4BFB5] group-hover:text-[#6E8B6B] transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
-              </button>
+              </div>
 
               {onDeleteAccount && (
                 <button
@@ -369,7 +445,7 @@ function AccountPickerScreen({
                   </svg>
                 </button>
               )}
-            </div>
+            </TiltCard>
           ))}
         </div>
 
@@ -382,8 +458,11 @@ function AccountPickerScreen({
 
         {/* Create New */}
         <button
-          onClick={onCreateNew}
-          className="picker-create w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl border-2 border-dashed border-[#D1CBBF] hover:border-[#6E8B6B] hover:bg-[#6E8B6B]/5 text-[#6C675E] hover:text-[#6E8B6B] font-semibold text-sm transition-all cursor-pointer"
+          onClick={(e) => {
+            animateJelly(e.currentTarget)
+            onCreateNew()
+          }}
+          className="picker-create w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl border-2 border-dashed border-[#D1CBBF] hover:border-[#6E8B6B] hover:bg-[#6E8B6B]/5 text-[#6C675E] hover:text-[#6E8B6B] font-semibold text-sm transition-all cursor-pointer active:scale-95"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -463,15 +542,30 @@ function WebNavbar({
         {/* Right utility items */}
         <div className="flex items-center gap-3">
           {/* Streak pill */}
-          <div className="flex items-center gap-2 bg-[#6E8B6B]/12 text-[#516E4E] px-3.5 py-2 rounded-xl text-xs font-semibold border border-[#6E8B6B]/20">
+          <div
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect()
+              spawnParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, {
+                colors: ['#FF9E00', '#FF6000', '#FFD166', '#6E8B6B'],
+                count: 18,
+                spread: 70,
+              })
+              animateJelly(e.currentTarget)
+            }}
+            className="streak-pulse flex items-center gap-2 bg-[#6E8B6B]/12 text-[#516E4E] px-3.5 py-2 rounded-xl text-xs font-semibold border border-[#6E8B6B]/20 cursor-pointer select-none transition-transform hover:scale-105 active:scale-95"
+            title="Click for streak burst!"
+          >
             <span className="text-base leading-none">🔥</span>
             <span>{streakCount}-day streak</span>
           </div>
 
           {/* Log Session Action Button */}
           <button
-            onClick={onOpenLogModal}
-            className="flex items-center gap-2 bg-[#6E8B6B] hover:bg-[#5E795B] text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm shadow-[#6E8B6B]/30 transition-all duration-150 active:scale-98 cursor-pointer"
+            onClick={(e) => {
+              animateJelly(e.currentTarget)
+              onOpenLogModal()
+            }}
+            className="flex items-center gap-2 bg-[#6E8B6B] hover:bg-[#5E795B] text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm shadow-[#6E8B6B]/30 transition-all duration-150 active:scale-95 cursor-pointer"
           >
             <svg width="15" height="15" viewBox="0 0 14 14" fill="none">
               <path d="M7 2v10M2 7h10" stroke="white" strokeWidth="2.2" strokeLinecap="round" />
@@ -481,9 +575,12 @@ function WebNavbar({
 
           {/* User profile avatar & switcher */}
           <button
-            onClick={onOpenAccountModal}
+            onClick={(e) => {
+              animateJelly(e.currentTarget)
+              onOpenAccountModal()
+            }}
             style={{ backgroundColor: currentUser?.avatarColor || '#CC8F3F' }}
-            className="w-10 h-10 rounded-xl text-white font-semibold flex items-center justify-center text-sm shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+            className="w-10 h-10 rounded-xl text-white font-semibold flex items-center justify-center text-sm shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-all"
             title={`${currentUser?.name || 'Account'} — Click to manage accounts`}
           >
             {userInitial}
@@ -566,26 +663,50 @@ function DashboardContent({
 
         {/* 4 PC Metric Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full lg:w-auto">
-          <div className="metric-card bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px]">
+          <TiltCard
+            onClick={(e) => {
+              spawnParticleBurst(e.clientX, e.clientY, { colors: ['#516E4E', '#6E8B6B', '#D5CEC4'], count: 12 })
+              animateJelly(e.currentTarget)
+            }}
+            className="metric-card bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px] cursor-pointer"
+          >
             <p className="text-[11px] font-semibold text-[#8F8A80] uppercase tracking-wider">Total Time</p>
             <p className="text-2xl font-bold text-[#1E1C19] mt-1">{Math.round(totalHours)}h</p>
             <p className="text-[11px] text-[#516E4E] font-medium mt-0.5">Across all crafts</p>
-          </div>
-          <div className="metric-card bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px]">
+          </TiltCard>
+          <TiltCard
+            onClick={(e) => {
+              spawnParticleBurst(e.clientX, e.clientY, { colors: ['#1E1C19', '#8F8A80', '#D5CEC4'], count: 12 })
+              animateJelly(e.currentTarget)
+            }}
+            className="metric-card bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px] cursor-pointer"
+          >
             <p className="text-[11px] font-semibold text-[#8F8A80] uppercase tracking-wider">Sessions</p>
             <p className="text-2xl font-bold text-[#1E1C19] mt-1">{totalSessions}</p>
             <p className="text-[11px] text-[#8F8A80] font-medium mt-0.5">Completed</p>
-          </div>
-          <div className="metric-card bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px]">
+          </TiltCard>
+          <TiltCard
+            onClick={(e) => {
+              spawnParticleBurst(e.clientX, e.clientY, { colors: ['#FF9E00', '#FF6000', '#FFD166'], count: 16 })
+              animateJelly(e.currentTarget)
+            }}
+            className="metric-card bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px] cursor-pointer"
+          >
             <p className="text-[11px] font-semibold text-[#8F8A80] uppercase tracking-wider">Streak</p>
             <p className="text-2xl font-bold text-[#CC8F3F] mt-1">{streakCount}d</p>
-            <p className="text-[11px] text-[#CC8F3F] font-medium mt-0.5">Day streak</p>
-          </div>
-          <div className="metric-card bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px]">
+            <p className="text-[11px] text-[#CC8F3F] font-medium mt-0.5">Day streak 🔥</p>
+          </TiltCard>
+          <TiltCard
+            onClick={(e) => {
+              spawnParticleBurst(e.clientX, e.clientY, { colors: ['#6E8B6B', '#516E4E', '#FFD166'], count: 12 })
+              animateJelly(e.currentTarget)
+            }}
+            className="metric-card bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px] cursor-pointer"
+          >
             <p className="text-[11px] font-semibold text-[#8F8A80] uppercase tracking-wider">Milestones</p>
             <p className="text-2xl font-bold text-[#6E8B6B] mt-1">{totalMilestonesCount}</p>
             <p className="text-[11px] text-[#516E4E] font-medium mt-0.5">In progress</p>
-          </div>
+          </TiltCard>
         </div>
       </div>
 
@@ -606,8 +727,11 @@ function DashboardContent({
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={onOpenAddMilestoneModal}
-                  className="text-xs font-bold text-white bg-[#6E8B6B] hover:bg-[#5E795B] px-3.5 py-1.5 rounded-xl shadow-sm transition-all"
+                  onClick={(e) => {
+                    animateJelly(e.currentTarget)
+                    onOpenAddMilestoneModal()
+                  }}
+                  className="text-xs font-bold text-white bg-[#6E8B6B] hover:bg-[#5E795B] px-3.5 py-1.5 rounded-xl shadow-sm transition-all cursor-pointer active:scale-95"
                 >
                   + Add Goal
                 </button>
@@ -618,10 +742,13 @@ function DashboardContent({
             {hobbies.length > 1 && (
               <div className="flex items-center gap-1.5 flex-wrap pt-4">
                 <button
-                  onClick={() => setSelectedHobbyFilter('all')}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                  onClick={(e) => {
+                    animateJelly(e.currentTarget)
+                    setSelectedHobbyFilter('all')
+                  }}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                     selectedHobbyFilter === 'all'
-                      ? 'bg-[#1E1C19] text-white'
+                      ? 'bg-[#1E1C19] text-white shadow-sm'
                       : 'bg-[#F4EFE6] text-[#6C675E] hover:bg-[#EAE4D9]'
                   }`}
                 >
@@ -630,12 +757,15 @@ function DashboardContent({
                 {hobbies.map((h) => (
                   <button
                     key={h.id}
-                    onClick={() => setSelectedHobbyFilter(h.id)}
+                    onClick={(e) => {
+                      animateJelly(e.currentTarget)
+                      setSelectedHobbyFilter(h.id)
+                    }}
                     style={{
                       backgroundColor: selectedHobbyFilter === h.id ? h.color : '#F4EFE6',
                       color: selectedHobbyFilter === h.id ? 'white' : '#6C675E',
                     }}
-                    className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
+                    className="px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer"
                   >
                     {h.name}
                   </button>
@@ -655,15 +785,21 @@ function DashboardContent({
                 </p>
                 <div className="mt-4 flex justify-center gap-3">
                   <button
-                    onClick={onOpenAddMilestoneModal}
-                    className="text-xs font-bold text-white bg-[#6E8B6B] hover:bg-[#5E795B] px-4 py-2 rounded-xl shadow-sm"
+                    onClick={(e) => {
+                      animateJelly(e.currentTarget)
+                      onOpenAddMilestoneModal()
+                    }}
+                    className="text-xs font-bold text-white bg-[#6E8B6B] hover:bg-[#5E795B] px-4 py-2 rounded-xl shadow-sm cursor-pointer"
                   >
                     + Create First Milestone
                   </button>
                   {hobbies.length === 0 && (
                     <button
-                      onClick={onOpenAddHobbyModal}
-                      className="text-xs font-bold text-[#5A554D] bg-[#EEE9E0] hover:bg-[#E2DBD0] px-4 py-2 rounded-xl"
+                      onClick={(e) => {
+                        animateJelly(e.currentTarget)
+                        onOpenAddHobbyModal()
+                      }}
+                      className="text-xs font-bold text-[#5A554D] bg-[#EEE9E0] hover:bg-[#E2DBD0] px-4 py-2 rounded-xl cursor-pointer"
                     >
                       + Add a Craft
                     </button>
@@ -671,7 +807,7 @@ function DashboardContent({
                 </div>
               </div>
             ) : (
-              <div className="divide-y divide-[#F4EFE6] mt-2">
+              <div className="space-y-4 mt-4">
                 {filteredMilestones.map((m) => {
                   const hobby = hobbies.find((h) => h.id === m.hobbyId) || hobbies[0] || {
                     name: 'Craft',
@@ -682,14 +818,30 @@ function DashboardContent({
                   const totalCount = m.checkpoints.length
                   const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
 
+                  const handleCheckpointClick = (cpId: string, event: React.MouseEvent) => {
+                    const targetCp = m.checkpoints.find((c) => c.id === cpId)
+                    const willBeDone = !targetCp?.done
+                    toggleCheckpoint(m.id, cpId)
+
+                    if (willBeDone) {
+                      const remaining = m.checkpoints.filter((c) => c.id !== cpId && !c.done)
+                      if (remaining.length === 0) {
+                        triggerCelebration(event.clientX, event.clientY)
+                      }
+                    }
+                  }
+
                   return (
-                    <div key={m.id} className="py-5 first:pt-4 last:pb-2">
+                    <TiltCard
+                      key={m.id}
+                      className="p-5 sm:p-6 rounded-2xl bg-[#FAF7F2] border border-[#ECE5DC] transition-all hover:border-[#D8D0C5]"
+                    >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1.5">
                             <span
                               style={{ backgroundColor: hobby.bg, color: hobby.color }}
-                              className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+                              className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider"
                             >
                               {hobby.name}
                             </span>
@@ -703,7 +855,7 @@ function DashboardContent({
                         {hobbies.some((h) => h.id === m.hobbyId) && (
                           <button
                             onClick={() => onSelectHobbyDetail(hobby as Hobby)}
-                            className="shrink-0 text-xs font-semibold text-[#6E8B6B] hover:text-[#5E795B] bg-[#EFF4EE] hover:bg-[#E3ECE2] px-3 py-1.5 rounded-lg transition-colors"
+                            className="shrink-0 text-xs font-semibold text-[#6E8B6B] hover:text-[#5E795B] bg-[#EFF4EE] hover:bg-[#E3ECE2] px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
                           >
                             View Craft →
                           </button>
@@ -725,17 +877,17 @@ function DashboardContent({
 
                       {/* Interactive checkpoints */}
                       {m.checkpoints.length > 0 && (
-                        <div className="mt-3.5 space-y-2 bg-[#FAF7F2] p-3.5 rounded-2xl border border-[#ECE5DC]">
+                        <div className="mt-3.5 space-y-2 bg-white/80 p-3.5 rounded-2xl border border-[#ECE5DC]">
                           {m.checkpoints.map((cp) => (
                             <div
                               key={cp.id}
                               className="flex items-center gap-3 py-1 cursor-pointer select-none group"
-                              onClick={() => toggleCheckpoint(m.id, cp.id)}
+                              onClick={(e) => handleCheckpointClick(cp.id, e)}
                             >
                               <Checkbox
                                 checked={cp.done}
                                 color={hobby.color}
-                                onToggle={() => toggleCheckpoint(m.id, cp.id)}
+                                onToggle={() => {}}
                               />
                               <span
                                 className={`text-sm transition-colors ${
@@ -750,7 +902,7 @@ function DashboardContent({
                           ))}
                         </div>
                       )}
-                    </div>
+                    </TiltCard>
                   )
                 })}
               </div>
@@ -761,7 +913,7 @@ function DashboardContent({
         {/* Right Column: Quick Practice Logger & Recent Journal (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
           {/* Quick Practice Shortcut */}
-          <div className="shortcut-box bg-gradient-to-br from-[#6E8B6B] to-[#557352] rounded-3xl p-6 sm:p-7 text-white shadow-sm">
+          <TiltCard className="shortcut-box bg-gradient-to-br from-[#6E8B6B] to-[#557352] rounded-3xl p-6 sm:p-7 text-white shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full">
                 Quick Logger
@@ -776,13 +928,21 @@ function DashboardContent({
             </p>
             <div className="mt-5">
               <button
-                onClick={onOpenLogModal}
-                className="w-full bg-white text-[#557352] hover:bg-[#F7F4EF] font-bold py-3 px-4 rounded-xl text-sm transition-all shadow-sm text-center cursor-pointer"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  spawnParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, {
+                    colors: ['#6E8B6B', '#CC8F3F', '#FAF7F2', '#FFD166'],
+                    count: 16,
+                  })
+                  animateJelly(e.currentTarget)
+                  onOpenLogModal()
+                }}
+                className="w-full bg-white text-[#557352] hover:bg-[#F7F4EF] font-bold py-3 px-4 rounded-xl text-sm transition-all shadow-sm text-center cursor-pointer active:scale-95"
               >
                 + Log Practice Session
               </button>
             </div>
-          </div>
+          </TiltCard>
 
           {/* Recent Practice Journal */}
           <div className="journal-box bg-white rounded-3xl p-6 sm:p-7 shadow-sm border border-[#EAE4DC]">
@@ -1023,8 +1183,21 @@ function DetailContent({
               const total = m.checkpoints.length
               const pct = total > 0 ? Math.round((done / total) * 100) : 0
 
+              const handleCheckpointClick = (cpId: string, event: React.MouseEvent) => {
+                const targetCp = m.checkpoints.find((c) => c.id === cpId)
+                const willBeDone = !targetCp?.done
+                toggleCheckpoint(m.id, cpId)
+
+                if (willBeDone) {
+                  const remaining = m.checkpoints.filter((c) => c.id !== cpId && !c.done)
+                  if (remaining.length === 0) {
+                    triggerCelebration(event.clientX, event.clientY)
+                  }
+                }
+              }
+
               return (
-                <div key={m.id} className="detail-card bg-white rounded-2xl p-6 border border-[#EAE4DC] shadow-sm">
+                <TiltCard key={m.id} className="detail-card bg-white rounded-2xl p-6 border border-[#EAE4DC] shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <span className="text-xs text-[#8F8A80] font-medium">Due {m.due}</span>
@@ -1050,13 +1223,13 @@ function DetailContent({
                     {m.checkpoints.map((cp) => (
                       <div
                         key={cp.id}
-                        className="flex items-center gap-3 cursor-pointer group"
-                        onClick={() => toggleCheckpoint(m.id, cp.id)}
+                        className="flex items-center gap-3 cursor-pointer group select-none"
+                        onClick={(e) => handleCheckpointClick(cp.id, e)}
                       >
                         <Checkbox
                           checked={cp.done}
                           color={hobby.color}
-                          onToggle={() => toggleCheckpoint(m.id, cp.id)}
+                          onToggle={() => {}}
                         />
                         <span
                           className={`text-sm ${
@@ -1068,7 +1241,7 @@ function DetailContent({
                       </div>
                     ))}
                   </div>
-                </div>
+                </TiltCard>
               )
             })}
           </div>
@@ -1149,7 +1322,7 @@ function ExploreContent({
           const alreadyAdded = hobbies.some((h) => h.name.toLowerCase() === craft.name.toLowerCase())
 
           return (
-            <div
+            <TiltCard
               key={craft.id}
               className="explore-card bg-white rounded-3xl p-6 sm:p-7 border border-[#EAE4DC] shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
             >
@@ -1186,17 +1359,27 @@ function ExploreContent({
               <div className="mt-6 pt-4 border-t border-[#F0EBE2]">
                 <button
                   disabled={alreadyAdded}
-                  onClick={() => onAddCraft(craft)}
+                  onClick={(e) => {
+                    if (!alreadyAdded) {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      spawnParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, {
+                        colors: [craft.color, '#6E8B6B', '#CC8F3F', '#FFD166'],
+                        count: 18,
+                      })
+                      animateJelly(e.currentTarget)
+                      onAddCraft(craft)
+                    }
+                  }}
                   style={{
                     backgroundColor: alreadyAdded ? '#EEE9E0' : craft.color,
                     color: alreadyAdded ? '#9B9890' : 'white',
                   }}
-                  className="w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer disabled:cursor-default"
+                  className="w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer disabled:cursor-default active:scale-95"
                 >
                   {alreadyAdded ? '✓ Added to My Crafts' : '+ Start This Craft'}
                 </button>
               </div>
-            </div>
+            </TiltCard>
           )
         })}
       </div>
@@ -1232,21 +1415,39 @@ function AnalyticsContent() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="analytics-stat bg-white rounded-3xl p-6 border border-[#EAE4DC] shadow-sm">
+        <TiltCard
+          onClick={(e) => {
+            spawnParticleBurst(e.clientX, e.clientY, { colors: ['#6E8B6B', '#516E4E', '#D5CEC4'], count: 14 })
+            animateJelly(e.currentTarget)
+          }}
+          className="analytics-stat bg-white rounded-3xl p-6 border border-[#EAE4DC] shadow-sm cursor-pointer"
+        >
           <p className="text-xs font-bold text-[#8F8A80] uppercase tracking-wider">Lifetime Practice</p>
           <p className="text-3xl font-bold text-[#1E1C19] mt-2">{Math.round(totalHours)} Hours</p>
           <p className="text-xs text-[#6E8B6B] font-semibold mt-1">Across {hobbies.length} active creative crafts</p>
-        </div>
-        <div className="analytics-stat bg-white rounded-3xl p-6 border border-[#EAE4DC] shadow-sm">
+        </TiltCard>
+        <TiltCard
+          onClick={(e) => {
+            spawnParticleBurst(e.clientX, e.clientY, { colors: ['#1E1C19', '#8F8A80', '#D5CEC4'], count: 14 })
+            animateJelly(e.currentTarget)
+          }}
+          className="analytics-stat bg-white rounded-3xl p-6 border border-[#EAE4DC] shadow-sm cursor-pointer"
+        >
           <p className="text-xs font-bold text-[#8F8A80] uppercase tracking-wider">Completed Sessions</p>
           <p className="text-3xl font-bold text-[#1E1C19] mt-2">{totalSessions} Sessions</p>
           <p className="text-xs text-[#8F8A80] font-semibold mt-1">Recorded practice sessions</p>
-        </div>
-        <div className="analytics-stat bg-white rounded-3xl p-6 border border-[#EAE4DC] shadow-sm">
+        </TiltCard>
+        <TiltCard
+          onClick={(e) => {
+            spawnParticleBurst(e.clientX, e.clientY, { colors: ['#FF9E00', '#FF6000', '#FFD166'], count: 18 })
+            animateJelly(e.currentTarget)
+          }}
+          className="analytics-stat bg-white rounded-3xl p-6 border border-[#EAE4DC] shadow-sm cursor-pointer"
+        >
           <p className="text-xs font-bold text-[#8F8A80] uppercase tracking-wider">Consistency Streak</p>
           <p className="text-3xl font-bold text-[#CC8F3F] mt-2">{streakCount} Days</p>
-          <p className="text-xs text-[#CC8F3F] font-semibold mt-1">Current active streak</p>
-        </div>
+          <p className="text-xs text-[#CC8F3F] font-semibold mt-1">Current active streak 🔥</p>
+        </TiltCard>
       </div>
 
       {/* Time Breakdown by Craft */}
@@ -2123,7 +2324,14 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F3EE] flex flex-col font-sans text-[#1E1C19]">
+    <div className="min-h-screen bg-[#F6F3EE] flex flex-col font-sans text-[#1E1C19] relative overflow-x-hidden">
+      {/* Living Ambient Background Orbs */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0 opacity-40">
+        <div className="ambient-orb-1 absolute -top-40 -left-40 w-96 h-96 rounded-full bg-gradient-to-br from-[#6E8B6B]/25 to-[#CC8F3F]/15 blur-3xl" />
+        <div className="ambient-orb-2 absolute top-1/3 -right-40 w-[30rem] h-[30rem] rounded-full bg-gradient-to-bl from-[#B26E53]/20 to-[#6E8B6B]/15 blur-3xl" />
+        <div className="ambient-orb-1 absolute -bottom-40 left-1/4 w-80 h-80 rounded-full bg-gradient-to-tr from-[#CC8F3F]/20 to-[#5B6B77]/15 blur-3xl" />
+      </div>
+
       {/* Top PC Web Navbar */}
       <WebNavbar
         active={activeNav}

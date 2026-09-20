@@ -14,6 +14,7 @@
 body {
   font-family: var(--font-body);
   background-color: #EDE9E2;
+  overflow-x: hidden;
 }
 
 ::-webkit-scrollbar {
@@ -22,4 +23,95 @@ body {
 
 textarea:focus {
   outline: none;
+}
+
+/* ─── 3D Magnetic Tilt Cards & Sheen ─── */
+.tilt-card {
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: box-shadow 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.tilt-card:hover {
+  box-shadow: 0 20px 35px -10px rgba(30, 28, 25, 0.12), 0 10px 15px -5px rgba(30, 28, 25, 0.04);
+}
+
+.tilt-card-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  transition: opacity 0.3s ease;
+  opacity: 0;
+  z-index: 20;
+}
+
+.tilt-3d-depth {
+  transform: translateZ(18px);
+  transform-style: preserve-3d;
+}
+
+/* ─── Living Ambient Background Animation ─── */
+@keyframes floatOrbSlow1 {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(35px, -45px) scale(1.08);
+  }
+  66% {
+    transform: translate(-25px, 25px) scale(0.95);
+  }
+}
+
+@keyframes floatOrbSlow2 {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  40% {
+    transform: translate(-40px, 30px) scale(1.1);
+  }
+  75% {
+    transform: translate(30px, -35px) scale(0.92);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+.ambient-orb-1 {
+  animation: floatOrbSlow1 18s ease-in-out infinite;
+}
+
+.ambient-orb-2 {
+  animation: floatOrbSlow2 22s ease-in-out infinite;
+}
+
+.streak-pulse {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+/* ─── Checkbox Pop Flash ─── */
+@keyframes checkFlash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(110, 139, 107, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(110, 139, 107, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(110, 139, 107, 0);
+  }
+}
+
+.checkbox-flash {
+  animation: checkFlash 0.5s ease-out;
 }
