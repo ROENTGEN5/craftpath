@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useStore } from './store'
 import { Screen, Tab, Nav, Hobby, Milestone, PracticeSession } from './types'
+import { animateFadeSlideUp, animateModalIn, animateBounce } from './utils/animations'
 
 /* ─── Color Tokens ─── */
 const SAGE = '#6E8B6B'
@@ -38,35 +39,35 @@ const EXPLORE_CRAFTS = [
     name: 'Leathercraft & Goods',
     category: 'Tactile Crafts',
     color: '#9C6644',
-    bg: '#F7EFE9',
+    bg: '#F8F3ED',
     difficulty: 'Intermediate',
-    hoursToBasics: '35-50 hours',
-    desc: 'Hand-craft heirloom leather goods using vegetable-tanned hides, pricking irons, and saddle stitching.',
-    starterKit: 'Veg-tan leather remnants, diamond pricking irons, waxed poly thread, harness needles, beveler',
-    initialMilestone: 'Craft a 4-pocket minimalist cardholder with burnished edges',
+    hoursToBasics: '25-30 hours',
+    desc: 'Pattern drafting, pricking irons, hand saddle stitching with waxed linen thread, and burnished edge beveling.',
+    starterKit: 'Vegetable-tanned leather scrap, diamond chisels, mallet, harness needles, edge slicker',
+    initialMilestone: 'Craft a 4-pocket cardholder with clean hand-stitched edges',
   },
   {
     id: 'exp-4',
-    name: 'Sourdough & Fermentation',
-    category: 'Culinary Arts',
-    color: '#C68B45',
-    bg: '#FBF3E8',
-    difficulty: 'Beginner',
-    hoursToBasics: '20 hours',
-    desc: 'Cultivate a wild yeast starter, master baker’s percentages, coil folds, fermentation timing, and Dutch oven steam baking.',
-    starterKit: 'Sourdough starter culture, kitchen scale, banneton proofing basket, lame/razor, cast iron Dutch oven',
-    initialMilestone: 'Bake a classic country loaf with open crumb and blistered crust',
+    name: 'Specialty Pour-Over Coffee',
+    category: 'Sensory & Culinary',
+    color: '#8C6D4F',
+    bg: '#F5EFEA',
+    difficulty: 'Beginner Friendly',
+    hoursToBasics: '10-15 hours',
+    desc: 'Dialing in grind size distribution, brew ratio water chemistry, extraction yield, and multi-stage pouring geometry.',
+    starterKit: 'V60 ceramic dripper, digital scale with timer, gooseneck kettle, burr grinder',
+    initialMilestone: 'Consistently brew a 1:16 Ethiopian light roast within 2:45–3:15 window',
   },
   {
     id: 'exp-5',
     name: 'Copperplate Calligraphy',
-    category: 'Visual Arts',
-    color: '#655A75',
-    bg: '#F2EFF6',
-    difficulty: 'Beginner',
-    hoursToBasics: '25 hours',
-    desc: 'Traditional pointed-pen cursive script focusing on pressure modulation, rhythmic hairlines, and elegant flourishing.',
-    starterKit: 'Oblique pen holder, Nikko G or Hunt 101 nib, walnut ink, Rhodia dot-pad',
+    category: 'Fine Line Arts',
+    color: '#5C6B73',
+    bg: '#EDF2F4',
+    difficulty: 'Intermediate',
+    hoursToBasics: '40-50 hours',
+    desc: 'Flexible pointed pen nib dynamics, rhythmic pressure transitions, hairline entry swells, and flourishing harmony.',
+    starterKit: 'Oblique pen holder, Nikko G & Hunt 101 nibs, Sumi ink, Rhodia dot pad',
     initialMilestone: 'Complete full lowercase alphabet drills with consistent 55° slant',
   },
   {
@@ -85,13 +86,23 @@ const EXPLORE_CRAFTS = [
 
 /* ─── Shared Checkbox Component ─── */
 function Checkbox({ checked, color, onToggle }: { checked: boolean; color: string; onToggle: () => void }) {
+  const boxRef = useRef<HTMLDivElement>(null)
+
+  const handleToggle = () => {
+    if (boxRef.current) {
+      animateBounce(boxRef.current)
+    }
+    onToggle()
+  }
+
   return (
     <button
-      onClick={onToggle}
+      onClick={handleToggle}
       className="shrink-0 p-0 bg-transparent border-none cursor-pointer flex items-center justify-center transition-transform active:scale-95"
       aria-label="Toggle checkpoint"
     >
       <div
+        ref={boxRef}
         style={{
           width: 20,
           height: 20,
@@ -121,10 +132,17 @@ function OnboardingScreen({
   onSwitchToLogin?: () => void
   hasExistingAccounts?: boolean
 }) {
+  const cardRef = useRef<HTMLDivElement>(null)
   const [name, setName] = useState('')
   const [hobby, setHobby] = useState('')
   const [category, setCategory] = useState('Visual Arts')
   const [milestone, setMilestone] = useState('')
+
+  useEffect(() => {
+    if (cardRef.current) {
+      animateFadeSlideUp(cardRef.current, { translateY: 24, duration: 650 })
+    }
+  }, [])
 
   const popularHobbies = [
     { name: 'Watercolor Painting', category: 'Visual Arts' },
@@ -145,7 +163,7 @@ function OnboardingScreen({
 
   return (
     <div className="min-h-screen bg-[#F6F3EE] flex items-center justify-center p-6 font-sans text-[#1E1C19]">
-      <div className="max-w-xl w-full bg-white rounded-3xl p-8 sm:p-10 shadow-lg border border-[#EAE4DC]">
+      <div ref={cardRef} className="max-w-xl w-full bg-white rounded-3xl p-8 sm:p-10 shadow-lg border border-[#EAE4DC]">
         {/* Brand Badge */}
         <div className="flex items-center gap-3 mb-6">
           <div className="w-12 h-12 rounded-2xl bg-[#6E8B6B] flex items-center justify-center text-white shadow-sm shadow-[#6E8B6B]/30">
@@ -271,11 +289,22 @@ function AccountPickerScreen({
   onCreateNew: () => void
   onDeleteAccount?: (accountId: string) => void
 }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (containerRef.current) {
+      animateFadeSlideUp(
+        containerRef.current.querySelectorAll('.picker-header, .account-card, .picker-divider, .picker-create'),
+        { translateY: 20, stagger: 60, duration: 550 }
+      )
+    }
+  }, [accounts.length])
+
   return (
     <div className="min-h-screen bg-[#F6F3EE] flex items-center justify-center p-6 font-sans text-[#1E1C19]">
-      <div className="max-w-md w-full bg-white rounded-3xl p-8 sm:p-10 shadow-lg border border-[#EAE4DC]">
+      <div ref={containerRef} className="max-w-md w-full bg-white rounded-3xl p-8 sm:p-10 shadow-lg border border-[#EAE4DC]">
         {/* Brand Badge */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="picker-header flex items-center gap-3 mb-6">
           <div className="w-12 h-12 rounded-2xl bg-[#6E8B6B] flex items-center justify-center text-white shadow-sm shadow-[#6E8B6B]/30">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
@@ -289,7 +318,7 @@ function AccountPickerScreen({
           </div>
         </div>
 
-        <p className="text-sm text-[#6C675E] leading-relaxed mb-6">
+        <p className="picker-header text-sm text-[#6C675E] leading-relaxed mb-6">
           Select an existing account to continue where you left off, or start a brand new creative journey.
         </p>
 
@@ -298,7 +327,7 @@ function AccountPickerScreen({
           {accounts.map((account) => (
             <div
               key={account.id}
-              className="w-full flex items-center gap-3 p-4 rounded-2xl bg-[#FAF7F2] border border-[#EAE4DC] hover:border-[#6E8B6B] hover:shadow-md transition-all group"
+              className="account-card w-full flex items-center gap-3 p-4 rounded-2xl bg-[#FAF7F2] border border-[#EAE4DC] hover:border-[#6E8B6B] hover:shadow-md transition-all group"
             >
               <button
                 type="button"
@@ -345,7 +374,7 @@ function AccountPickerScreen({
         </div>
 
         {/* Divider */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="picker-divider flex items-center gap-3 mb-6">
           <div className="flex-1 h-px bg-[#EAE4DC]" />
           <span className="text-xs text-[#8F8A80] font-medium uppercase tracking-wider">or</span>
           <div className="flex-1 h-px bg-[#EAE4DC]" />
@@ -354,7 +383,7 @@ function AccountPickerScreen({
         {/* Create New */}
         <button
           onClick={onCreateNew}
-          className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl border-2 border-dashed border-[#D1CBBF] hover:border-[#6E8B6B] hover:bg-[#6E8B6B]/5 text-[#6C675E] hover:text-[#6E8B6B] font-semibold text-sm transition-all cursor-pointer"
+          className="picker-create w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl border-2 border-dashed border-[#D1CBBF] hover:border-[#6E8B6B] hover:bg-[#6E8B6B]/5 text-[#6C675E] hover:text-[#6E8B6B] font-semibold text-sm transition-all cursor-pointer"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -489,6 +518,7 @@ function DashboardContent({
   onOpenAddMilestoneModal: () => void
   onOpenAddHobbyModal: () => void
 }) {
+  const dashboardRef = useRef<HTMLDivElement>(null)
   const { hobbies, milestones, sessions, streakCount, currentUser, toggleCheckpoint } = useStore()
   const [selectedHobbyFilter, setSelectedHobbyFilter] = useState<string>('all')
 
@@ -500,15 +530,24 @@ function DashboardContent({
     ? milestones
     : milestones.filter((m) => m.hobbyId === selectedHobbyFilter)
 
+  useEffect(() => {
+    if (dashboardRef.current) {
+      animateFadeSlideUp(
+        dashboardRef.current.querySelectorAll('.dash-banner, .metric-card, .milestone-box, .shortcut-box, .journal-box'),
+        { translateY: 18, stagger: 50, duration: 550 }
+      )
+    }
+  }, [selectedHobbyFilter])
+
   // Dynamic greeting based on current local time
   const currentHour = new Date().getHours()
   const greetingTime = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening'
   const userName = currentUser?.name || 'Crafter'
 
   return (
-    <div className="space-y-8">
+    <div ref={dashboardRef} className="space-y-8">
       {/* Welcome Banner & Overview Metric Cards */}
-      <div className="bg-white rounded-3xl p-8 shadow-sm border border-[#EAE4DC] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+      <div className="dash-banner bg-white rounded-3xl p-8 shadow-sm border border-[#EAE4DC] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
         <div className="max-w-xl">
           <div className="flex items-center gap-2 mb-2">
             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#EFF4EE] text-[#516E4E] uppercase tracking-wide">
@@ -527,22 +566,22 @@ function DashboardContent({
 
         {/* 4 PC Metric Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full lg:w-auto">
-          <div className="bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px]">
+          <div className="metric-card bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px]">
             <p className="text-[11px] font-semibold text-[#8F8A80] uppercase tracking-wider">Total Time</p>
             <p className="text-2xl font-bold text-[#1E1C19] mt-1">{Math.round(totalHours)}h</p>
             <p className="text-[11px] text-[#516E4E] font-medium mt-0.5">Across all crafts</p>
           </div>
-          <div className="bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px]">
+          <div className="metric-card bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px]">
             <p className="text-[11px] font-semibold text-[#8F8A80] uppercase tracking-wider">Sessions</p>
             <p className="text-2xl font-bold text-[#1E1C19] mt-1">{totalSessions}</p>
             <p className="text-[11px] text-[#8F8A80] font-medium mt-0.5">Completed</p>
           </div>
-          <div className="bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px]">
+          <div className="metric-card bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px]">
             <p className="text-[11px] font-semibold text-[#8F8A80] uppercase tracking-wider">Streak</p>
             <p className="text-2xl font-bold text-[#CC8F3F] mt-1">{streakCount}d</p>
             <p className="text-[11px] text-[#CC8F3F] font-medium mt-0.5">Day streak</p>
           </div>
-          <div className="bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px]">
+          <div className="metric-card bg-[#FAF7F2] p-4 rounded-2xl border border-[#ECE5DC] min-w-[120px]">
             <p className="text-[11px] font-semibold text-[#8F8A80] uppercase tracking-wider">Milestones</p>
             <p className="text-2xl font-bold text-[#6E8B6B] mt-1">{totalMilestonesCount}</p>
             <p className="text-[11px] text-[#516E4E] font-medium mt-0.5">In progress</p>
@@ -553,7 +592,7 @@ function DashboardContent({
       {/* Main Two-Column PC Dashboard Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Upcoming Milestones & Goals (7 cols) */}
-        <div className="lg:col-span-7 space-y-6">
+        <div className="milestone-box lg:col-span-7 space-y-6">
           <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-[#EAE4DC]">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#F0EBE3]">
               <div>
@@ -722,7 +761,7 @@ function DashboardContent({
         {/* Right Column: Quick Practice Logger & Recent Journal (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
           {/* Quick Practice Shortcut */}
-          <div className="bg-gradient-to-br from-[#6E8B6B] to-[#557352] rounded-3xl p-6 sm:p-7 text-white shadow-sm">
+          <div className="shortcut-box bg-gradient-to-br from-[#6E8B6B] to-[#557352] rounded-3xl p-6 sm:p-7 text-white shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full">
                 Quick Logger
@@ -746,7 +785,7 @@ function DashboardContent({
           </div>
 
           {/* Recent Practice Journal */}
-          <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-sm border border-[#EAE4DC]">
+          <div className="journal-box bg-white rounded-3xl p-6 sm:p-7 shadow-sm border border-[#EAE4DC]">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h2 style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-2xl text-[#1E1C19] font-normal">
@@ -839,12 +878,22 @@ function DetailContent({
   onOpenLogModal: () => void
   onOpenAddMilestoneModal: () => void
 }) {
+  const detailRef = useRef<HTMLDivElement>(null)
   const { milestones, sessions, toggleCheckpoint } = useStore()
   const hobbyMilestones = milestones.filter((m) => m.hobbyId === hobby.id)
   const hobbySessions = sessions.filter((s) => s.hobbyId === hobby.id)
 
+  useEffect(() => {
+    if (detailRef.current) {
+      animateFadeSlideUp(
+        detailRef.current.querySelectorAll('.detail-hero, .detail-nav-tabs, .detail-card'),
+        { translateY: 18, stagger: 50, duration: 550 }
+      )
+    }
+  }, [activeTab, hobby.id])
+
   return (
-    <div className="space-y-8">
+    <div ref={detailRef} className="space-y-8">
       {/* Breadcrumb Navigation */}
       <button
         onClick={onBack}
@@ -861,7 +910,7 @@ function DetailContent({
         style={{
           background: `linear-gradient(135deg, ${hobby.color} 0%, ${hobby.color}D9 100%)`,
         }}
-        className="rounded-3xl p-8 sm:p-10 text-white shadow-lg relative overflow-hidden"
+        className="detail-hero rounded-3xl p-8 sm:p-10 text-white shadow-lg relative overflow-hidden"
       >
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
           <div>
@@ -909,7 +958,7 @@ function DetailContent({
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center justify-between border-b border-[#EAE4DC] pb-4">
+      <div className="detail-nav-tabs flex items-center justify-between border-b border-[#EAE4DC] pb-4">
         <div className="flex gap-2">
           <button
             onClick={() => onTabChange('milestones')}
@@ -956,7 +1005,7 @@ function DetailContent({
       {/* Tab Content */}
       {activeTab === 'milestones' ? (
         hobbyMilestones.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 border border-[#EAE4DC] shadow-sm text-center">
+          <div className="detail-card bg-white rounded-2xl p-12 border border-[#EAE4DC] shadow-sm text-center">
             <p className="text-base font-bold text-[#1E1C19]">No milestones for {hobby.name} yet.</p>
             <p className="text-xs text-[#8F8A80] mt-1">Set an intention or technical drill to track your progress.</p>
             <button
@@ -975,7 +1024,7 @@ function DetailContent({
               const pct = total > 0 ? Math.round((done / total) * 100) : 0
 
               return (
-                <div key={m.id} className="bg-white rounded-2xl p-6 border border-[#EAE4DC] shadow-sm">
+                <div key={m.id} className="detail-card bg-white rounded-2xl p-6 border border-[#EAE4DC] shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <span className="text-xs text-[#8F8A80] font-medium">Due {m.due}</span>
@@ -1025,7 +1074,7 @@ function DetailContent({
           </div>
         )
       ) : (
-        <div className="bg-white rounded-2xl p-8 border border-[#EAE4DC] shadow-sm">
+        <div className="detail-card bg-white rounded-2xl p-8 border border-[#EAE4DC] shadow-sm">
           {hobbySessions.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-sm text-[#8F8A80]">No practice sessions logged yet for this craft.</p>
@@ -1070,10 +1119,20 @@ function ExploreContent({
   onAddCraft: (craft: typeof EXPLORE_CRAFTS[0]) => void
 }) {
   const { hobbies } = useStore()
+  const exploreRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (exploreRef.current) {
+      animateFadeSlideUp(
+        exploreRef.current.querySelectorAll('.explore-header, .explore-card'),
+        { translateY: 20, stagger: 50, duration: 550 }
+      )
+    }
+  }, [])
 
   return (
-    <div className="space-y-8">
-      <div>
+    <div ref={exploreRef} className="space-y-8">
+      <div className="explore-header">
         <span className="text-xs font-bold uppercase tracking-wider text-[#6E8B6B] bg-[#EFF4EE] px-3 py-1 rounded-full">
           Creative Discovery
         </span>
@@ -1092,7 +1151,7 @@ function ExploreContent({
           return (
             <div
               key={craft.id}
-              className="bg-white rounded-3xl p-6 sm:p-7 border border-[#EAE4DC] shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
+              className="explore-card bg-white rounded-3xl p-6 sm:p-7 border border-[#EAE4DC] shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -1148,12 +1207,22 @@ function ExploreContent({
 /* ─── Analytics Screen Content (PC Ratio) ─── */
 function AnalyticsContent() {
   const { hobbies, sessions, streakCount } = useStore()
+  const analyticsRef = useRef<HTMLDivElement>(null)
   const totalHours = hobbies.reduce((sum, h) => sum + h.hours, 0)
   const totalSessions = hobbies.reduce((sum, h) => sum + h.sessions, 0)
 
+  useEffect(() => {
+    if (analyticsRef.current) {
+      animateFadeSlideUp(
+        analyticsRef.current.querySelectorAll('.analytics-header, .analytics-stat, .analytics-chart'),
+        { translateY: 20, stagger: 60, duration: 550 }
+      )
+    }
+  }, [])
+
   return (
-    <div className="space-y-8">
-      <div>
+    <div ref={analyticsRef} className="space-y-8">
+      <div className="analytics-header">
         <h1 style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-4xl text-[#1E1C19] font-normal">
           Practice Analytics & Velocity
         </h1>
@@ -1163,17 +1232,17 @@ function AnalyticsContent() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-3xl p-6 border border-[#EAE4DC] shadow-sm">
+        <div className="analytics-stat bg-white rounded-3xl p-6 border border-[#EAE4DC] shadow-sm">
           <p className="text-xs font-bold text-[#8F8A80] uppercase tracking-wider">Lifetime Practice</p>
           <p className="text-3xl font-bold text-[#1E1C19] mt-2">{Math.round(totalHours)} Hours</p>
           <p className="text-xs text-[#6E8B6B] font-semibold mt-1">Across {hobbies.length} active creative crafts</p>
         </div>
-        <div className="bg-white rounded-3xl p-6 border border-[#EAE4DC] shadow-sm">
+        <div className="analytics-stat bg-white rounded-3xl p-6 border border-[#EAE4DC] shadow-sm">
           <p className="text-xs font-bold text-[#8F8A80] uppercase tracking-wider">Completed Sessions</p>
           <p className="text-3xl font-bold text-[#1E1C19] mt-2">{totalSessions} Sessions</p>
           <p className="text-xs text-[#8F8A80] font-semibold mt-1">Recorded practice sessions</p>
         </div>
-        <div className="bg-white rounded-3xl p-6 border border-[#EAE4DC] shadow-sm">
+        <div className="analytics-stat bg-white rounded-3xl p-6 border border-[#EAE4DC] shadow-sm">
           <p className="text-xs font-bold text-[#8F8A80] uppercase tracking-wider">Consistency Streak</p>
           <p className="text-3xl font-bold text-[#CC8F3F] mt-2">{streakCount} Days</p>
           <p className="text-xs text-[#CC8F3F] font-semibold mt-1">Current active streak</p>
@@ -1181,7 +1250,7 @@ function AnalyticsContent() {
       </div>
 
       {/* Time Breakdown by Craft */}
-      <div className="bg-white rounded-3xl p-8 border border-[#EAE4DC] shadow-sm">
+      <div className="analytics-chart bg-white rounded-3xl p-8 border border-[#EAE4DC] shadow-sm">
         <h2 style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-2xl text-[#1E1C19] font-normal mb-6">
           Hours Logged per Craft
         </h2>
@@ -1226,9 +1295,19 @@ function ProfileContent({
   onResetData: () => void
   onLogout: () => void
 }) {
+  const profileRef = useRef<HTMLDivElement>(null)
   const { hobbies, streakCount, sessions, currentUser, accounts, switchAccount } = useStore()
   const totalHours = hobbies.reduce((sum, h) => sum + h.hours, 0)
   const userInitial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'
+
+  useEffect(() => {
+    if (profileRef.current) {
+      animateFadeSlideUp(
+        profileRef.current.querySelectorAll('.profile-header-card, .profile-switch-card, .profile-danger-card'),
+        { translateY: 20, stagger: 60, duration: 550 }
+      )
+    }
+  }, [])
 
   const handleExportData = () => {
     const data = {
@@ -1248,9 +1327,9 @@ function ProfileContent({
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div ref={profileRef} className="max-w-4xl mx-auto space-y-8">
       {/* Profile Header */}
-      <div className="bg-white rounded-3xl p-8 border border-[#EAE4DC] shadow-sm flex flex-col sm:flex-row items-center gap-6">
+      <div className="profile-header-card bg-white rounded-3xl p-8 border border-[#EAE4DC] shadow-sm flex flex-col sm:flex-row items-center gap-6">
         <div
           style={{ backgroundColor: currentUser?.avatarColor || '#CC8F3F' }}
           className="w-24 h-24 rounded-3xl text-white text-3xl font-bold flex items-center justify-center shadow-md"
@@ -1301,7 +1380,7 @@ function ProfileContent({
       </div>
 
       {/* Account Switching & Management */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#EAE4DC] shadow-sm">
+      <div className="profile-switch-card bg-white rounded-3xl p-6 sm:p-8 border border-[#EAE4DC] shadow-sm">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div>
             <h2 style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-2xl text-[#1E1C19] font-normal">
@@ -1362,7 +1441,7 @@ function ProfileContent({
       </div>
 
       {/* Danger Zone: Reset Data */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-red-200 shadow-sm">
+      <div className="profile-danger-card bg-white rounded-3xl p-6 sm:p-8 border border-red-200 shadow-sm">
         <h2 className="text-base font-bold text-red-800 mb-1">Start Fresh / Reset Data</h2>
         <p className="text-xs text-[#8F8A80] mb-4">
           Want to clear all data and start completely brand new? This will reset your studio and return you to onboarding.
@@ -1388,10 +1467,17 @@ function AddMilestoneModal({
   onClose: () => void
   onAddMilestone: (hobbyId: string, title: string, due: string, checkpoints: string[]) => void
 }) {
+  const modalCardRef = useRef<HTMLDivElement>(null)
   const [hobbyId, setHobbyId] = useState(hobbies[0]?.id || '')
   const [title, setTitle] = useState('')
   const [due, setDue] = useState('2 weeks')
   const [checkpoints, setCheckpoints] = useState(['', ''])
+
+  useEffect(() => {
+    if (modalCardRef.current) {
+      animateModalIn(modalCardRef.current)
+    }
+  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -1418,7 +1504,7 @@ function AddMilestoneModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div onClick={onClose} className="fixed inset-0 bg-black/45 backdrop-blur-sm" />
-      <div className="relative z-10 bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#EAE4DC] max-w-lg w-full p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
+      <div ref={modalCardRef} className="relative z-10 bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#EAE4DC] max-w-lg w-full p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between pb-4 border-b border-[#EAE4DC]">
           <div>
             <h2 style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-2xl text-[#1E1C19] font-normal">
@@ -1530,9 +1616,16 @@ function AddHobbyModal({
   onClose: () => void
   onAddHobby: (name: string, category: string, color: string) => void
 }) {
+  const modalCardRef = useRef<HTMLDivElement>(null)
   const [name, setName] = useState('')
   const [category, setCategory] = useState('Visual Arts')
   const [color, setColor] = useState('#6E8B6B')
+
+  useEffect(() => {
+    if (modalCardRef.current) {
+      animateModalIn(modalCardRef.current)
+    }
+  }, [])
 
   const colors = ['#6E8B6B', '#CC8F3F', '#5B6B77', '#B26E53', '#4F7959', '#655A75', '#C86446']
 
@@ -1546,7 +1639,7 @@ function AddHobbyModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div onClick={onClose} className="fixed inset-0 bg-black/45 backdrop-blur-sm" />
-      <div className="relative z-10 bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#EAE4DC] max-w-md w-full p-6 sm:p-8">
+      <div ref={modalCardRef} className="relative z-10 bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#EAE4DC] max-w-md w-full p-6 sm:p-8">
         <div className="flex items-center justify-between pb-4 border-b border-[#EAE4DC]">
           <div>
             <h2 style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-2xl text-[#1E1C19] font-normal">
@@ -1644,10 +1737,17 @@ function DesktopSessionModal({
   onClose: () => void
   onOpenAddHobbyModal: () => void
 }) {
+  const modalCardRef = useRef<HTMLDivElement>(null)
   const { milestones, saveSession } = useStore()
   const hobby = hobbies.find((h) => h.id === hobbyId) || hobbies[0]
   const hobbyMilestones = hobby ? milestones.filter((m) => m.hobbyId === hobby.id) : []
   const [selectedGoal, setSelectedGoal] = useState(hobbyMilestones[0]?.id ?? '')
+
+  useEffect(() => {
+    if (modalCardRef.current) {
+      animateModalIn(modalCardRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     if (hobbyMilestones.length > 0) {
@@ -1670,7 +1770,7 @@ function DesktopSessionModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div onClick={onClose} className="fixed inset-0 bg-black/45 backdrop-blur-sm" />
-      <div className="relative z-10 bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#EAE4DC] max-w-lg w-full p-6 sm:p-8 overflow-hidden max-h-[90vh] overflow-y-auto">
+      <div ref={modalCardRef} className="relative z-10 bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#EAE4DC] max-w-lg w-full p-6 sm:p-8 overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between pb-4 border-b border-[#EAE4DC]">
           <div>
             <h2 style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-2xl text-[#1E1C19] font-normal">
@@ -1809,6 +1909,87 @@ function DesktopSessionModal({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Create Account Modal ─── */
+function CreateAccountModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void
+  onCreate: (name: string, hobby: string) => void
+}) {
+  const modalCardRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (modalCardRef.current) {
+      animateModalIn(modalCardRef.current)
+    }
+  }, [])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div onClick={onClose} className="fixed inset-0 bg-black/45 backdrop-blur-sm" />
+      <div ref={modalCardRef} className="relative z-10 bg-white rounded-3xl shadow-2xl border border-[#EAE4DC] max-w-md w-full p-6 sm:p-8">
+        <div className="flex items-center justify-between pb-4 border-b border-[#EAE4DC]">
+          <h2 style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-2xl text-[#1E1C19]">
+            Create Another Account
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-[#EEE9E0] text-[#6C675E] flex items-center justify-center">
+            ✕
+          </button>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            const form = e.target as HTMLFormElement
+            const newName = (form.elements.namedItem('accName') as HTMLInputElement).value
+            const newHobby = (form.elements.namedItem('accHobby') as HTMLInputElement).value
+            if (newName.trim()) {
+              onCreate(newName.trim(), newHobby.trim())
+              onClose()
+            }
+          }}
+          className="py-5 space-y-4"
+        >
+          <div>
+            <label className="text-xs font-bold text-[#8F8A80] uppercase tracking-wider block mb-2">Account Name</label>
+            <input
+              name="accName"
+              type="text"
+              required
+              placeholder="e.g. Mark (Studio)"
+              className="w-full bg-[#FAF7F2] border border-[#EAE4DC] rounded-xl p-3 text-sm text-[#1E1C19]"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-[#8F8A80] uppercase tracking-wider block mb-2">Initial Craft (Optional)</label>
+            <input
+              name="accHobby"
+              type="text"
+              placeholder="e.g. Pottery, Guitar, Writing..."
+              className="w-full bg-[#FAF7F2] border border-[#EAE4DC] rounded-xl p-3 text-sm text-[#1E1C19]"
+            />
+          </div>
+          <div className="pt-3 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-[#D5CEC4] text-xs font-bold text-[#6C675E]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-2 py-2.5 rounded-xl bg-[#6E8B6B] text-white text-xs font-bold shadow-md hover:bg-[#5E795B]"
+            >
+              Create Account
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )
@@ -2049,67 +2230,10 @@ function App() {
 
       {/* Account Creation Modal from Profile */}
       {showAccountModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div onClick={() => setShowAccountModal(false)} className="fixed inset-0 bg-black/45 backdrop-blur-sm" />
-          <div className="relative z-10 bg-white rounded-3xl shadow-2xl border border-[#EAE4DC] max-w-md w-full p-6 sm:p-8">
-            <div className="flex items-center justify-between pb-4 border-b border-[#EAE4DC]">
-              <h2 style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-2xl text-[#1E1C19]">
-                Create Another Account
-              </h2>
-              <button onClick={() => setShowAccountModal(false)} className="w-8 h-8 rounded-full bg-[#EEE9E0] text-[#6C675E] flex items-center justify-center">
-                ✕
-              </button>
-            </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                const form = e.target as HTMLFormElement
-                const newName = (form.elements.namedItem('accName') as HTMLInputElement).value
-                const newHobby = (form.elements.namedItem('accHobby') as HTMLInputElement).value
-                if (newName.trim()) {
-                  createAccount(newName.trim(), newHobby.trim())
-                  setShowAccountModal(false)
-                }
-              }}
-              className="py-5 space-y-4"
-            >
-              <div>
-                <label className="text-xs font-bold text-[#8F8A80] uppercase tracking-wider block mb-2">Account Name</label>
-                <input
-                  name="accName"
-                  type="text"
-                  required
-                  placeholder="e.g. Mark (Studio)"
-                  className="w-full bg-[#FAF7F2] border border-[#EAE4DC] rounded-xl p-3 text-sm text-[#1E1C19]"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-[#8F8A80] uppercase tracking-wider block mb-2">Initial Craft (Optional)</label>
-                <input
-                  name="accHobby"
-                  type="text"
-                  placeholder="e.g. Pottery, Guitar, Writing..."
-                  className="w-full bg-[#FAF7F2] border border-[#EAE4DC] rounded-xl p-3 text-sm text-[#1E1C19]"
-                />
-              </div>
-              <div className="pt-3 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAccountModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-[#D5CEC4] text-xs font-bold text-[#6C675E]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-2 py-2.5 rounded-xl bg-[#6E8B6B] text-white text-xs font-bold shadow-md hover:bg-[#5E795B]"
-                >
-                  Create Account
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <CreateAccountModal
+          onClose={() => setShowAccountModal(false)}
+          onCreate={(name, hobby) => createAccount(name, hobby)}
+        />
       )}
     </div>
   )
