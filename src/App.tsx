@@ -493,7 +493,7 @@ function WebNavbar({
   const { streakCount, currentUser } = useStore()
   const navItems: { id: Nav; label: string; icon: string }[] = [
     { id: 'hobbies', label: 'Dashboard', icon: '🎨' },
-    { id: 'explore', label: 'Explore Crafts', icon: '🧭' },
+    { id: 'explore', label: 'Explore', icon: '🧭' },
     { id: 'analytics', label: 'Analytics', icon: '📊' },
     { id: 'profile', label: 'Profile', icon: '👤' },
   ]
@@ -502,33 +502,33 @@ function WebNavbar({
 
   return (
     <header className="sticky top-0 z-40 bg-[#FAF7F2]/90 backdrop-blur-md border-b border-[#EAE4DC]">
-      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-18 sm:h-20 flex items-center justify-between gap-3 lg:gap-6">
         {/* Brand Logo */}
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => onChange('hobbies')}>
-          <div className="w-10 h-10 rounded-xl bg-[#6E8B6B] flex items-center justify-center text-white shadow-sm shadow-[#6E8B6B]/30">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="flex items-center gap-3 cursor-pointer shrink-0" onClick={() => onChange('hobbies')}>
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#6E8B6B] flex items-center justify-center text-white shadow-sm shadow-[#6E8B6B]/30 shrink-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
             </svg>
           </div>
-          <div>
-            <span style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-2xl text-[#1E1C19] font-normal tracking-tight block leading-tight">
+          <div className="shrink-0">
+            <span style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-xl sm:text-2xl text-[#1E1C19] font-normal tracking-tight block leading-tight">
               CraftPath
             </span>
-            <span className="text-[11px] font-medium text-[#8F8A80] tracking-wider uppercase">
+            <span className="text-[10px] sm:text-[11px] font-medium text-[#8F8A80] tracking-wider uppercase block">
               Hobby & Mastery Studio
             </span>
           </div>
         </div>
 
-        {/* Navigation items */}
-        <nav className="hidden md:flex items-center gap-1 bg-[#EEE9E0] p-1.5 rounded-full border border-[#E4DDD2]">
+        {/* Navigation items (Desktop) */}
+        <nav className="hidden md:flex items-center gap-1 bg-[#EEE9E0] p-1.5 rounded-full border border-[#E4DDD2] shrink-0">
           {navItems.map((item) => {
             const isActive = active === item.id
             return (
               <button
                 key={item.id}
                 onClick={() => onChange(item.id)}
-                className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                className={`px-3.5 lg:px-5 py-1.5 lg:py-2 rounded-full text-xs lg:text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap cursor-pointer shrink-0 ${
                   isActive
                     ? 'bg-white text-[#1E1C19] shadow-sm font-semibold'
                     : 'text-[#6C675E] hover:text-[#1E1C19] hover:bg-white/40'
@@ -542,18 +542,18 @@ function WebNavbar({
         </nav>
 
         {/* Right utility items */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5 lg:gap-3 shrink-0">
           {/* How It Works / Tour Button */}
           <button
             onClick={(e) => {
               animateJelly(e.currentTarget)
               onOpenTutorial()
             }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#6C675E] hover:text-[#1E1C19] hover:bg-[#EEE9E0] transition-all cursor-pointer active:scale-95 border border-[#EAE4DC]"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold text-[#6C675E] hover:text-[#1E1C19] hover:bg-[#EEE9E0] transition-all cursor-pointer active:scale-95 border border-[#EAE4DC] shrink-0 whitespace-nowrap"
             title="Interactive Studio Tour & Tutorial"
           >
             <span className="text-sm">💡</span>
-            <span className="hidden lg:inline">How It Works</span>
+            <span className="hidden xl:inline">Tour</span>
           </button>
 
           {/* Streak pill */}
@@ -567,11 +567,13 @@ function WebNavbar({
               })
               animateJelly(e.currentTarget)
             }}
-            className="streak-pulse flex items-center gap-2 bg-[#6E8B6B]/12 text-[#516E4E] px-3.5 py-2 rounded-xl text-xs font-semibold border border-[#6E8B6B]/20 cursor-pointer select-none transition-transform hover:scale-105 active:scale-95"
+            className="streak-pulse flex items-center gap-1.5 sm:gap-2 bg-[#6E8B6B]/12 text-[#516E4E] px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold border border-[#6E8B6B]/20 cursor-pointer select-none transition-transform hover:scale-105 active:scale-95 shrink-0 whitespace-nowrap"
             title="Click for streak burst!"
           >
             <span className="text-base leading-none">🔥</span>
-            <span>{streakCount}-day streak</span>
+            <span className="whitespace-nowrap font-medium">
+              {streakCount}-day<span className="hidden sm:inline"> streak</span>
+            </span>
           </div>
 
           {/* Log Session Action Button */}
@@ -580,12 +582,12 @@ function WebNavbar({
               animateJelly(e.currentTarget)
               onOpenLogModal()
             }}
-            className="flex items-center gap-2 bg-[#6E8B6B] hover:bg-[#5E795B] text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm shadow-[#6E8B6B]/30 transition-all duration-150 active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 sm:gap-2 bg-[#6E8B6B] hover:bg-[#5E795B] text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold shadow-sm shadow-[#6E8B6B]/30 transition-all duration-150 active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
           >
-            <svg width="15" height="15" viewBox="0 0 14 14" fill="none">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M7 2v10M2 7h10" stroke="white" strokeWidth="2.2" strokeLinecap="round" />
             </svg>
-            <span className="hidden sm:inline">Log Session</span>
+            <span className="hidden sm:inline whitespace-nowrap">Log Session</span>
           </button>
 
           {/* User profile avatar & switcher */}
@@ -595,7 +597,7 @@ function WebNavbar({
               onOpenAccountModal()
             }}
             style={{ backgroundColor: currentUser?.avatarColor || '#CC8F3F' }}
-            className="w-10 h-10 rounded-xl text-white font-semibold flex items-center justify-center text-sm shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-all"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-white font-semibold flex items-center justify-center text-xs sm:text-sm shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-all shrink-0"
             title={`${currentUser?.name || 'Account'} — Click to manage accounts`}
           >
             {userInitial}
@@ -605,7 +607,7 @@ function WebNavbar({
           <button
             onClick={onLogout}
             title="Log Out / Switch Studio"
-            className="p-2.5 rounded-xl border border-[#EAE4DC] hover:border-red-200 hover:bg-red-50 text-[#8F8A80] hover:text-red-600 transition-colors cursor-pointer flex items-center justify-center"
+            className="p-2 sm:p-2.5 rounded-xl border border-[#EAE4DC] hover:border-red-200 hover:bg-red-50 text-[#8F8A80] hover:text-red-600 transition-colors cursor-pointer flex items-center justify-center shrink-0"
             aria-label="Log Out"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -2658,7 +2660,7 @@ function App() {
       />
 
       {/* Main PC Viewport Container */}
-      <main className="max-w-7xl mx-auto w-full px-6 py-8 flex-1">
+      <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 pb-24 md:pb-8 flex-1">
         {activeNav === 'hobbies' && screen === 'home' && (
           <DashboardContent
             onSelectHobbyDetail={openDetail}
@@ -2710,6 +2712,33 @@ function App() {
           <span>CraftPath Studio v1.0</span>
         </div>
       </footer>
+
+      {/* Mobile Bottom Navigation Bar (Phone & small tablet screens) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#FAF7F2]/95 backdrop-blur-md border-t border-[#EAE4DC] px-3 py-2 flex items-center justify-around shadow-lg">
+        {[
+          { id: 'hobbies' as Nav, label: 'Dashboard', icon: '🎨' },
+          { id: 'explore' as Nav, label: 'Explore', icon: '🧭' },
+          { id: 'analytics' as Nav, label: 'Analytics', icon: '📊' },
+          { id: 'profile' as Nav, label: 'Profile', icon: '👤' },
+        ].map((item) => {
+          const isActive = activeNav === item.id
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                setNav(item.id)
+                if (screen === 'detail') setScreen('home')
+              }}
+              className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all cursor-pointer ${
+                isActive ? 'text-[#516E4E] font-bold scale-105' : 'text-[#8F8A80]'
+              }`}
+            >
+              <span className="text-base">{item.icon}</span>
+              <span className="text-[11px] font-medium">{item.label}</span>
+            </button>
+          )
+        })}
+      </nav>
 
       {/* Session Modal */}
       {showLogModal && (
