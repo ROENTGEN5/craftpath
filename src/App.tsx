@@ -480,12 +480,14 @@ function WebNavbar({
   onChange,
   onOpenLogModal,
   onOpenAccountModal,
+  onOpenTutorial,
   onLogout,
 }: {
   active: Nav
   onChange: (n: Nav) => void
   onOpenLogModal: () => void
   onOpenAccountModal: () => void
+  onOpenTutorial: () => void
   onLogout: () => void
 }) {
   const { streakCount, currentUser } = useStore()
@@ -541,6 +543,19 @@ function WebNavbar({
 
         {/* Right utility items */}
         <div className="flex items-center gap-3">
+          {/* How It Works / Tour Button */}
+          <button
+            onClick={(e) => {
+              animateJelly(e.currentTarget)
+              onOpenTutorial()
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#6C675E] hover:text-[#1E1C19] hover:bg-[#EEE9E0] transition-all cursor-pointer active:scale-95 border border-[#EAE4DC]"
+            title="Interactive Studio Tour & Tutorial"
+          >
+            <span className="text-sm">💡</span>
+            <span className="hidden lg:inline">How It Works</span>
+          </button>
+
           {/* Streak pill */}
           <div
             onClick={(e) => {
@@ -609,11 +624,13 @@ function DashboardContent({
   onOpenLogModal,
   onOpenAddMilestoneModal,
   onOpenAddHobbyModal,
+  onOpenTutorial,
 }: {
   onSelectHobbyDetail: (h: Hobby) => void
   onOpenLogModal: () => void
   onOpenAddMilestoneModal: () => void
   onOpenAddHobbyModal: () => void
+  onOpenTutorial?: () => void
 }) {
   const dashboardRef = useRef<HTMLDivElement>(null)
   const { hobbies, milestones, sessions, streakCount, currentUser, toggleCheckpoint } = useStore()
@@ -646,12 +663,24 @@ function DashboardContent({
       {/* Welcome Banner & Overview Metric Cards */}
       <div className="dash-banner bg-white rounded-3xl p-8 shadow-sm border border-[#EAE4DC] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
         <div className="max-w-xl">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#EFF4EE] text-[#516E4E] uppercase tracking-wide">
               Daily Practice Dashboard
             </span>
             <span className="text-xs text-[#9B9890]">·</span>
             <span className="text-xs text-[#9B9890]">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+            {onOpenTutorial && (
+              <>
+                <span className="text-xs text-[#9B9890]">·</span>
+                <button
+                  type="button"
+                  onClick={onOpenTutorial}
+                  className="text-xs font-semibold text-[#516E4E] hover:text-[#384F35] bg-[#EFF4EE] hover:bg-[#E2EBE1] px-2.5 py-0.5 rounded-full transition-colors inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <span>💡 Studio Tour</span>
+                </button>
+              </>
+            )}
           </div>
           <h1 style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-4xl text-[#1E1C19] font-normal tracking-tight">
             {greetingTime}, {userName}
@@ -2205,6 +2234,272 @@ function CreateAccountModal({
   )
 }
 
+/* ─── Interactive Studio Tutorial Modal ─── */
+function StudioTutorialModal({ onClose }: { onClose: () => void }) {
+  const [step, setStep] = useState(0)
+  const modalCardRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (modalCardRef.current) {
+      animateModalIn(modalCardRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (contentRef.current) {
+      animateFadeSlideUp(contentRef.current, { translateY: 15, duration: 350 })
+    }
+  }, [step])
+
+  const tutorialSteps = [
+    {
+      title: 'Welcome to CraftPath!',
+      subtitle: 'Your Personal Hobby & Mastery Studio',
+      badge: 'Step 1 of 4: The Core Idea',
+      icon: '🎨',
+      color: '#6E8B6B',
+      content: (
+        <div className="space-y-4 text-sm text-[#5A554D] leading-relaxed">
+          <p>
+            CraftPath is built for <strong className="text-[#1E1C19]">tactile, hands-on hobbies</strong>—like Ceramic Pottery, Fingerstyle Guitar, Watercolor Painting, Woodworking, or Coffee Brewing.
+          </p>
+          <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#ECE5DC] space-y-2.5">
+            <p className="font-semibold text-[#1E1C19] text-xs uppercase tracking-wider">What you do in CraftPath:</p>
+            <ul className="space-y-2 text-xs text-[#6C675E]">
+              <li className="flex items-start gap-2.5">
+                <span className="text-base">✨</span>
+                <div>
+                  <strong className="text-[#1E1C19] block">Manage Your Crafts</strong>
+                  <span>Track different crafts separately with their own progress, hours, and goals.</span>
+                </div>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="text-base">🎯</span>
+                <div>
+                  <strong className="text-[#1E1C19] block">Set Tangible Milestones</strong>
+                  <span>Break big skills down into clear, checkable drills and steps.</span>
+                </div>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="text-base">⏱️</span>
+                <div>
+                  <strong className="text-[#1E1C19] block">Log Practice & Reflect</strong>
+                  <span>Record practice time and write journal reflections on what clicked.</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Goals & Milestones',
+      subtitle: 'Turn vague intentions into concrete progress',
+      badge: 'Step 2 of 4: Setting Milestones',
+      icon: '🎯',
+      color: '#CC8F3F',
+      content: (
+        <div className="space-y-4 text-sm text-[#5A554D] leading-relaxed">
+          <p>
+            Instead of general practice, create a <strong className="text-[#1E1C19]">Milestone</strong> with checkpoints to guide your sessions.
+          </p>
+          <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#ECE5DC] space-y-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-[#CC8F3F]">Example: "Master Barre Chords"</span>
+              <span className="text-[#8F8A80]">2/3 completed</span>
+            </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center gap-2 text-[#9B9890] line-through">
+                <span className="w-4 h-4 rounded bg-[#CC8F3F] text-white flex items-center justify-center text-[10px]">✓</span>
+                <span>F major clean tone on frets 1-6</span>
+              </div>
+              <div className="flex items-center gap-2 text-[#9B9890] line-through">
+                <span className="w-4 h-4 rounded bg-[#CC8F3F] text-white flex items-center justify-center text-[10px]">✓</span>
+                <span>B minor transition speed under 1 sec</span>
+              </div>
+              <div className="flex items-center gap-2 text-[#1E1C19] font-medium">
+                <span className="w-4 h-4 rounded border-2 border-[#CEC8BF] flex items-center justify-center" />
+                <span>Play 4-chord progression without fret buzz</span>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-[#8F8A80]">
+            💡 <strong>Pro Tip:</strong> Checking off the final checkpoint of a milestone triggers celebratory fireworks!
+          </p>
+        </div>
+      ),
+    },
+    {
+      title: 'Recording Practice Sessions',
+      subtitle: 'Build intuition through deliberate practice',
+      badge: 'Step 3 of 4: The Practice Log',
+      icon: '⏱️',
+      color: '#557352',
+      content: (
+        <div className="space-y-4 text-sm text-[#5A554D] leading-relaxed">
+          <p>
+            Whenever you spend time practicing, click the green <strong className="text-[#557352]">'+ Log Practice Session'</strong> button on your dashboard or navbar.
+          </p>
+          <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#ECE5DC] space-y-2">
+            <p className="font-semibold text-[#1E1C19] text-xs uppercase tracking-wider">In each session you can:</p>
+            <div className="grid grid-cols-2 gap-2 text-xs text-[#6C675E]">
+              <div className="p-3 rounded-xl bg-white border border-[#EAE4DC]">
+                <strong className="text-[#1E1C19] block mb-1">Select Duration</strong>
+                <span>Choose 15m, 30m, 45m, 60m+ of focused time</span>
+              </div>
+              <div className="p-3 rounded-xl bg-white border border-[#EAE4DC]">
+                <strong className="text-[#1E1C19] block mb-1">Write Reflections</strong>
+                <span>Record breakthroughs, questions, or technique notes</span>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-[#6C675E]">
+            All reflections are saved in your <strong>Recent Journal</strong> so you can review past lessons anytime.
+          </p>
+        </div>
+      ),
+    },
+    {
+      title: 'Streaks & Analytics',
+      subtitle: 'Cultivate daily consistency and explore new crafts',
+      badge: 'Step 4 of 4: Rhythm & Exploration',
+      icon: '🔥',
+      color: '#B26E53',
+      content: (
+        <div className="space-y-4 text-sm text-[#5A554D] leading-relaxed">
+          <p>
+            Consistency is how mastery happens. Practice each day to keep your <strong className="text-[#CC8F3F]">daily streak flame 🔥</strong> alive.
+          </p>
+          <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#ECE5DC] space-y-2.5 text-xs text-[#6C675E]">
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">🧭</span>
+              <div>
+                <strong className="text-[#1E1C19] block">Explore Crafts Tab</strong>
+                <span>Discover curated roadmaps (Bonsai, Leathercraft, Specialty Coffee) with beginner starter kits and time estimates.</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 pt-2 border-t border-[#EAE4DC]">
+              <span className="text-lg">📊</span>
+              <div>
+                <strong className="text-[#1E1C19] block">Analytics Tab</strong>
+                <span>See total lifetime hours, session count, and percentage time breakdown across all your crafts.</span>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-[#516E4E] font-medium">
+            You're all set! Enjoy your practice journey.
+          </p>
+        </div>
+      ),
+    },
+  ]
+
+  const current = tutorialSteps[step]
+  const isLast = step === tutorialSteps.length - 1
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div onClick={onClose} className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+      <div
+        ref={modalCardRef}
+        className="relative z-10 bg-white rounded-3xl shadow-2xl border border-[#EAE4DC] max-w-lg w-full p-6 sm:p-8 overflow-hidden"
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between pb-4 border-b border-[#EAE4DC]">
+          <div className="flex items-center gap-3">
+            <div
+              style={{ backgroundColor: `${current.color}15`, color: current.color }}
+              className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm"
+            >
+              {current.icon}
+            </div>
+            <div>
+              <span
+                style={{ color: current.color }}
+                className="text-[11px] font-bold uppercase tracking-wider block"
+              >
+                {current.badge}
+              </span>
+              <h2
+                style={{ fontFamily: 'DM Serif Display, Georgia, serif' }}
+                className="text-2xl text-[#1E1C19] font-normal leading-tight"
+              >
+                {current.title}
+              </h2>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-[#EEE9E0] text-[#6C675E] hover:bg-[#E2DBD0] transition-colors flex items-center justify-center cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Content with Animation */}
+        <div ref={contentRef} className="py-6 min-h-[220px]">
+          {current.content}
+        </div>
+
+        {/* Footer Navigation */}
+        <div className="pt-4 border-t border-[#EAE4DC] flex items-center justify-between gap-4">
+          {/* Progress dots */}
+          <div className="flex items-center gap-1.5">
+            {tutorialSteps.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setStep(idx)}
+                style={{
+                  backgroundColor: step === idx ? current.color : '#E4DDD2',
+                  width: step === idx ? 24 : 8,
+                }}
+                className="h-2 rounded-full transition-all duration-300 cursor-pointer"
+                aria-label={`Go to step ${idx + 1}`}
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {step > 0 && (
+              <button
+                type="button"
+                onClick={() => setStep(step - 1)}
+                className="py-2.5 px-4 rounded-xl border border-[#D5CEC4] text-xs font-bold text-[#6C675E] hover:bg-[#FAF7F2] transition-colors cursor-pointer"
+              >
+                Previous
+              </button>
+            )}
+
+            {isLast ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  triggerCelebration(e.clientX, e.clientY)
+                  onClose()
+                }}
+                style={{ backgroundColor: current.color }}
+                className="py-2.5 px-5 rounded-xl text-white text-xs font-bold shadow-md hover:opacity-95 transition-opacity cursor-pointer active:scale-95"
+              >
+                Start Practicing! ✨
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setStep(step + 1)}
+                style={{ backgroundColor: current.color }}
+                className="py-2.5 px-5 rounded-xl text-white text-xs font-bold shadow-md hover:opacity-95 transition-opacity cursor-pointer active:scale-95"
+              >
+                Next Step →
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── Main App (PC Screen Ratio) ─── */
 function App() {
   const {
@@ -2230,6 +2525,7 @@ function App() {
   const [showAddMilestoneModal, setShowAddMilestoneModal] = useState(false)
   const [showAddHobbyModal, setShowAddHobbyModal] = useState(false)
   const [showAccountModal, setShowAccountModal] = useState(false)
+  const [showTutorialModal, setShowTutorialModal] = useState(false)
   const [showCreateNew, setShowCreateNew] = useState(false)
 
   const [activeTab, setActiveTab] = useState<Tab>('milestones')
@@ -2357,6 +2653,7 @@ function App() {
         onOpenAccountModal={() => {
           setNav('profile')
         }}
+        onOpenTutorial={() => setShowTutorialModal(true)}
         onLogout={logout}
       />
 
@@ -2371,6 +2668,7 @@ function App() {
             }}
             onOpenAddMilestoneModal={() => setShowAddMilestoneModal(true)}
             onOpenAddHobbyModal={() => setShowAddHobbyModal(true)}
+            onOpenTutorial={() => setShowTutorialModal(true)}
           />
         )}
 
@@ -2451,6 +2749,11 @@ function App() {
           onClose={() => setShowAccountModal(false)}
           onCreate={(name, hobby) => createAccount(name, hobby)}
         />
+      )}
+
+      {/* Studio Tutorial Modal */}
+      {showTutorialModal && (
+        <StudioTutorialModal onClose={() => setShowTutorialModal(false)} />
       )}
     </div>
   )
