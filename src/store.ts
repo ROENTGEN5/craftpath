@@ -1,19 +1,94 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { AppState, Hobby, Milestone, PracticeSession, Nav, Screen, UserAccount } from './types'
+import { AppState, TodoItem, Nav, Screen, UserAccount, Hobby, Milestone, PracticeSession, Priority, Recurrence, EmailReminderSettings, AISettings } from './types'
 import {
   ensureFirebaseAuth,
   getFirebaseUid,
   saveUserToFirestore,
-  syncHobbyToFirestore,
-  syncMilestoneToFirestore,
-  syncSessionToFirestore,
+  saveFullAccountToFirestore,
+  syncTodoToFirestore,
+  deleteTodoFromFirestore,
+  deleteAccountFromFirestore,
   loadUserDataFromFirestore,
 } from './firebase'
 
+export function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export function getRelativeDays(dateStr: string): number {
+  if (!dateStr) return 0
+  const today = new Date(getLocalDateString())
+  const target = new Date(dateStr.split('T')[0])
+  const diffTime = target.getTime() - today.getTime()
+  return Math.round(diffTime / (1000 * 60 * 60 * 24))
+}
+
+export function getYesterdayString(): string {
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  return getLocalDateString(yesterday)
+}
+
+export function getTomorrowString(): string {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return getLocalDateString(tomorrow)
+}
+
+export function getDaysAheadString(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return getLocalDateString(d)
+}
+
+export function getNextOccurrenceDate(baseDateStr: string, recurrence: Recurrence): string {
+  const today = getLocalDateString()
+  const effectiveBase = !baseDateStr || baseDateStr < today ? today : baseDateStr.split('T')[0]
+  const [y, m, d] = effectiveBase.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+
+  if (recurrence === 'daily') {
+    date.setDate(date.getDate() + 1)
+  } else if (recurrence === 'weekdays') {
+    do {
+      date.setDate(date.getDate() + 1)
+    } while (date.getDay() === 0 || date.getDay() === 6)
+  } else if (recurrence === 'weekly') {
+    date.setDate(date.getDate() + 7)
+  }
+
+  return getLocalDateString(date)
+}
+
+import { setSoundMuted } from './utils/sound'
+
 interface AppStore extends AppState {
+  // To-Do Actions
+  addTodo: (todo: Omit<TodoItem, 'id' | 'createdAt'>) => void
+  toggleTodo: (todoId: string) => boolean // returns true if completed extends/maintains streak
+  rescheduleTodo: (todoId: string, newDeadline: string) => void
+  deleteTodo: (todoId: string) => void
+  updateTodo: (todoId: string, updates: Partial<TodoItem>) => void
+  updateUserName: (name: string) => void
+
+  // Sound, Reminders & AI
+  toggleSound: () => void
+  setEmailReminder: (settings: EmailReminderSettings) => void
+  setAISettings: (settings: Partial<AISettings>) => void
+
   // Account Actions
-  createAccount: (name: string, initialHobbyName?: string, initialCategory?: string, initialMilestone?: string) => void
+  createAccount: (
+    name: string,
+    initialTodoTitle?: string,
+    initialDeadline?: string,
+    initialPriority?: Priority,
+    initialCategory?: string,
+    initialRecurrence?: Recurrence
+  ) => void
   switchAccount: (accountId: string) => void
   logout: () => void
   deleteAccount: (accountId: string) => void
@@ -22,36 +97,54 @@ interface AppStore extends AppState {
   // Navigation & Screen Actions
   setNav: (nav: Nav) => void
   setScreen: (screen: Screen) => void
-  setSelectedHobby: (id: string | null) => void
 
-  // Craft & Milestone Actions
+  // Legacy compat
   addHobby: (hobby: Hobby) => void
   deleteHobby: (hobbyId: string) => void
   addMilestone: (milestone: Omit<Milestone, 'id'>) => void
   deleteMilestone: (milestoneId: string) => void
   toggleCheckpoint: (milestoneId: string, checkpointId: string) => void
-
-  // Practice Session Actions
   saveSession: (session: Omit<PracticeSession, 'id'>) => void
-  updateStreak: () => void
+
+  // Sync
   syncWithFirestore: () => Promise<void>
+}
+
+const defaultEmailReminder: EmailReminderSettings = {
+  enabled: false,
+  email: '',
+  time: '08:00',
+  frequency: 'daily',
+}
+
+const defaultAISettings: AISettings = {
+  groqApiKey: '',
+  personality: 'savage',
+  enabled: true,
 }
 
 const initialState: AppState = {
   currentUser: null,
   accounts: [],
   accountData: {},
+  todos: [],
+  streakCount: 0,
+  lastCompletedDate: null,
+  streakHistory: [],
+  soundEnabled: true,
+  emailReminder: defaultEmailReminder,
+  aiSettings: defaultAISettings,
   hobbies: [],
   milestones: [],
   sessions: [],
-  streakCount: 0,
   lastActiveDate: null,
-  activeNav: 'hobbies',
+  activeNav: 'todos',
   selectedHobbyId: null,
   screen: 'home',
   isOnboarded: false,
   firebaseUid: null,
 }
+
 
 export const useStore = create<AppStore>()(
   persist(
@@ -59,113 +152,443 @@ export const useStore = create<AppStore>()(
       ...initialState,
 
       syncWithFirestore: async () => {
-        const uid = get().firebaseUid || getFirebaseUid()
+        const uid = get().firebaseUid || (await ensureFirebaseAuth())
         if (!uid) return
-        const data = await loadUserDataFromFirestore(uid)
-        if (data && (data.hobbies.length > 0 || data.milestones.length > 0 || data.sessions.length > 0)) {
-          set({
-            hobbies: data.hobbies.length > 0 ? data.hobbies : get().hobbies,
-            milestones: data.milestones.length > 0 ? data.milestones : get().milestones,
-            sessions: data.sessions.length > 0 ? data.sessions : get().sessions,
-          })
+        set({ firebaseUid: uid })
+
+        const cloudData = await loadUserDataFromFirestore(uid)
+        if (!cloudData) return
+
+        const currentAccounts = get().accounts
+        const currentAccountData = get().accountData || {}
+
+        // If cloud has accounts, merge with local
+        if (cloudData.accounts && cloudData.accounts.length > 0) {
+          const mergedAccountsMap = new Map<string, UserAccount>()
+          currentAccounts.forEach((a) => mergedAccountsMap.set(a.id, a))
+          cloudData.accounts.forEach((a) => mergedAccountsMap.set(a.id, a))
+
+          const mergedAccounts = Array.from(mergedAccountsMap.values())
+          const mergedAccountData = { ...currentAccountData, ...cloudData.accountData }
+
+          const activeUser = get().currentUser
+          if (activeUser && mergedAccountData[activeUser.id]) {
+            const myData = mergedAccountData[activeUser.id]
+            set({
+              accounts: mergedAccounts,
+              accountData: mergedAccountData,
+              todos: myData.todos || [],
+              streakCount: myData.streakCount || 0,
+              lastCompletedDate: myData.lastCompletedDate || null,
+              streakHistory: myData.streakHistory || [],
+            })
+          } else {
+            set({
+              accounts: mergedAccounts,
+              accountData: mergedAccountData,
+            })
+          }
+        } else if (cloudData.todos && cloudData.todos.length > 0 && get().todos.length === 0) {
+          set({ todos: cloudData.todos })
         }
       },
 
-      createAccount: (name, initialHobbyName, initialCategory, initialMilestone) => {
-        const trimmedName = name.trim() || 'Crafter'
+      addTodo: (todoData) => {
+        const current = get().currentUser
+        const newTodo: TodoItem = {
+          ...todoData,
+          id: 'td-' + Math.random().toString(36).substr(2, 9),
+          createdAt: new Date().toISOString(),
+        }
+
+        const uid = get().firebaseUid || getFirebaseUid()
+        if (uid) {
+          syncTodoToFirestore(uid, newTodo, current?.id)
+        }
+
+        set((state) => {
+          const updatedTodos = [newTodo, ...state.todos]
+          const accountData = { ...(state.accountData || {}) }
+          if (current) {
+            accountData[current.id] = {
+              ...(accountData[current.id] || { streakCount: 0, lastCompletedDate: null, streakHistory: [] }),
+              todos: updatedTodos,
+              streakCount: state.streakCount,
+              lastCompletedDate: state.lastCompletedDate,
+              streakHistory: state.streakHistory,
+            }
+          }
+          return {
+            todos: updatedTodos,
+            accountData,
+          }
+        })
+      },
+
+      toggleTodo: (todoId: string) => {
+        const today = getLocalDateString()
+        const yesterday = getYesterdayString()
+        let didExtendStreak = false
+
+        set((state) => {
+          const target = state.todos.find((t) => t.id === todoId)
+          if (!target) return state
+
+          const willBeDone = !target.done
+          const updatedTodos = state.todos.map((t) =>
+            t.id === todoId
+              ? {
+                  ...t,
+                  done: willBeDone,
+                  completedAt: willBeDone ? new Date().toISOString() : undefined,
+                }
+              : t
+          )
+
+          const uid = get().firebaseUid || getFirebaseUid()
+          const current = state.currentUser
+          const updatedTarget = updatedTodos.find((t) => t.id === todoId)
+          if (uid && updatedTarget) {
+            syncTodoToFirestore(uid, updatedTarget, current?.id)
+          }
+
+          let newStreakCount = state.streakCount
+          let newLastCompletedDate = state.lastCompletedDate
+          let newStreakHistory = [...state.streakHistory]
+
+          if (willBeDone) {
+            // Task marked as complete
+            didExtendStreak = true
+
+            // If task is recurring, auto-schedule the next occurrence
+            if (target.recurrence && target.recurrence !== 'none') {
+              const nextDeadline = getNextOccurrenceDate(target.deadline || today, target.recurrence)
+              const nextRecurringTodo: TodoItem = {
+                id:
+                  typeof crypto !== 'undefined' && crypto.randomUUID
+                    ? crypto.randomUUID()
+                    : 'td-' + Math.random().toString(36).substr(2, 7),
+                title: target.title,
+                description: target.description,
+                deadline: nextDeadline,
+                category: target.category,
+                priority: target.priority,
+                recurrence: target.recurrence,
+                done: false,
+                createdAt: new Date().toISOString(),
+              }
+              updatedTodos.push(nextRecurringTodo)
+              if (uid) {
+                syncTodoToFirestore(uid, nextRecurringTodo, current?.id)
+              }
+            }
+
+            const hasOtherDoneToday = updatedTodos.some(
+              (t) => t.id !== todoId && t.done && t.completedAt?.startsWith(today)
+            )
+
+            if (!hasOtherDoneToday) {
+              // First task completed today!
+              if (state.lastCompletedDate === yesterday) {
+                newStreakCount = state.streakCount + 1
+              } else if (state.lastCompletedDate === today) {
+                newStreakCount = state.streakCount
+              } else {
+                newStreakCount = 1
+              }
+
+              newLastCompletedDate = today
+              if (!newStreakHistory.includes(today)) {
+                newStreakHistory.push(today)
+              }
+            }
+          } else {
+            // Task uncompleted - check if any other task was completed today
+            const anyRemainingToday = updatedTodos.some(
+              (t) => t.done && t.completedAt?.startsWith(today)
+            )
+
+            if (!anyRemainingToday) {
+              // Revert today's streak
+              newStreakHistory = newStreakHistory.filter((d) => d !== today)
+              const previousDates = newStreakHistory.filter((d) => d < today).sort()
+              const prevDate = previousDates[previousDates.length - 1] || null
+
+              if (newLastCompletedDate === today) {
+                newLastCompletedDate = prevDate
+                newStreakCount = Math.max(0, state.streakCount - 1)
+              }
+            }
+          }
+
+          // Update current user accountData
+          const accountData = { ...(state.accountData || {}) }
+          if (current) {
+            accountData[current.id] = {
+              todos: updatedTodos,
+              streakCount: newStreakCount,
+              lastCompletedDate: newLastCompletedDate,
+              streakHistory: newStreakHistory,
+            }
+
+            if (uid) {
+              saveFullAccountToFirestore(uid, current, accountData[current.id])
+            }
+          }
+
+          return {
+            todos: updatedTodos,
+            streakCount: newStreakCount,
+            lastCompletedDate: newLastCompletedDate,
+            streakHistory: newStreakHistory,
+            accountData,
+          }
+        })
+
+        return didExtendStreak
+      },
+
+      deleteTodo: (todoId) => {
+        const current = get().currentUser
+        const uid = get().firebaseUid || getFirebaseUid()
+        if (uid) {
+          deleteTodoFromFirestore(uid, todoId, current?.id)
+        }
+
+        set((state) => {
+          const updatedTodos = state.todos.filter((t) => t.id !== todoId)
+          const accountData = { ...(state.accountData || {}) }
+          if (current && accountData[current.id]) {
+            accountData[current.id] = {
+              ...accountData[current.id],
+              todos: updatedTodos,
+            }
+          }
+          return {
+            todos: updatedTodos,
+            accountData,
+          }
+        })
+      },
+
+      rescheduleTodo: (todoId, newDeadline) => {
+        const current = get().currentUser
+        set((state) => {
+          const updatedTodos = state.todos.map((t) =>
+            t.id === todoId ? { ...t, deadline: newDeadline } : t
+          )
+
+          const uid = get().firebaseUid || getFirebaseUid()
+          const target = updatedTodos.find((t) => t.id === todoId)
+          if (uid && target) {
+            syncTodoToFirestore(uid, target, current?.id)
+          }
+
+          const accountData = { ...(state.accountData || {}) }
+          if (current && accountData[current.id]) {
+            accountData[current.id] = {
+              ...accountData[current.id],
+              todos: updatedTodos,
+            }
+          }
+
+          return { todos: updatedTodos, accountData }
+        })
+      },
+
+      toggleSound: () => {
+        set((state) => {
+          const next = !state.soundEnabled
+          setSoundMuted(!next)
+          return { soundEnabled: next }
+        })
+      },
+
+      setEmailReminder: (settings) => {
+        const current = get().currentUser
+        set((state) => {
+          const accountData = { ...(state.accountData || {}) }
+          if (current && accountData[current.id]) {
+            accountData[current.id] = {
+              ...accountData[current.id],
+              emailReminder: settings,
+            }
+          }
+
+          const uid = get().firebaseUid || getFirebaseUid()
+          if (uid && current) {
+            saveUserToFirestore(uid, {
+              ...current,
+              emailReminder: settings,
+            } as any)
+          }
+
+          return {
+            emailReminder: settings,
+            accountData,
+          }
+        })
+      },
+
+      setAISettings: (settings) => {
+        const current = get().currentUser
+        set((state) => {
+          const updatedAISettings = {
+            ...state.aiSettings,
+            ...settings,
+          }
+          const accountData = { ...(state.accountData || {}) }
+          if (current && accountData[current.id]) {
+            accountData[current.id] = {
+              ...accountData[current.id],
+              aiSettings: updatedAISettings,
+            }
+          }
+
+          const uid = get().firebaseUid || getFirebaseUid()
+          if (uid && current) {
+            saveUserToFirestore(uid, {
+              ...current,
+              aiSettings: updatedAISettings,
+            } as any)
+          }
+
+          return {
+            aiSettings: updatedAISettings,
+            accountData,
+          }
+        })
+      },
+
+      updateTodo: (todoId, updates) => {
+
+        const current = get().currentUser
+        set((state) => {
+          const updatedTodos = state.todos.map((t) =>
+            t.id === todoId ? { ...t, ...updates } : t
+          )
+
+          const uid = get().firebaseUid || getFirebaseUid()
+          const target = updatedTodos.find((t) => t.id === todoId)
+          if (uid && target) {
+            syncTodoToFirestore(uid, target, current?.id)
+          }
+
+          const accountData = { ...(state.accountData || {}) }
+          if (current && accountData[current.id]) {
+            accountData[current.id] = {
+              ...accountData[current.id],
+              todos: updatedTodos,
+            }
+          }
+
+          return { todos: updatedTodos, accountData }
+        })
+      },
+
+      updateUserName: (name) => {
+        const trimmed = name.trim() || 'Productive Maker'
+        set((state) => {
+          if (!state.currentUser) return state
+          const updatedUser: UserAccount = {
+            ...state.currentUser,
+            name: trimmed,
+          }
+          const uid = state.firebaseUid || getFirebaseUid()
+          if (uid) {
+            saveUserToFirestore(uid, updatedUser)
+          }
+          return {
+            currentUser: updatedUser,
+            accounts: state.accounts.map((a) =>
+              a.id === updatedUser.id ? updatedUser : a
+            ),
+          }
+        })
+      },
+
+      createAccount: (name, initialTodoTitle, initialDeadline, initialPriority, initialCategory, initialRecurrence) => {
+        const trimmedName = name.trim() || 'Maker'
         const accountId = 'usr-' + Math.random().toString(36).substr(2, 7)
         const colors = ['#CC8F3F', '#6E8B6B', '#5B6B77', '#B26E53', '#4F7959', '#655A75']
         const randomColor = colors[Math.floor(Math.random() * colors.length)]
+        const today = getLocalDateString()
 
         const newAccount: UserAccount = {
           id: accountId,
           name: trimmedName,
           avatarColor: randomColor,
-          createdAt: new Date().toISOString().split('T')[0],
+          createdAt: today,
         }
 
-        let newHobbies: Hobby[] = []
-        let newMilestones: Milestone[] = []
+        const initialTodos: TodoItem[] = []
 
-        if (initialHobbyName && initialHobbyName.trim()) {
-          const hobbyId = 'h-' + Math.random().toString(36).substr(2, 6)
-          const newHobby: Hobby = {
-            id: hobbyId,
-            name: initialHobbyName.trim(),
-            category: initialCategory?.trim() || 'Creative Craft',
-            color: randomColor,
-            bg: `${randomColor}18`,
-            hours: 0,
-            sessions: 0,
-            progress: 0,
-          }
-          newHobbies = [newHobby]
-
-          if (initialMilestone && initialMilestone.trim()) {
-            const milestoneId = 'm-' + Math.random().toString(36).substr(2, 6)
-            newMilestones = [
-              {
-                id: milestoneId,
-                hobbyId: hobbyId,
-                title: initialMilestone.trim(),
-                due: '30 days',
-                checkpoints: [
-                  { id: 'cp-1', title: 'Prepare tools and setup workspace', done: false },
-                  { id: 'cp-2', title: 'Complete first 30-minute practice session', done: false },
-                ],
-              },
-            ]
-          }
+        if (initialTodoTitle && initialTodoTitle.trim()) {
+          initialTodos.push({
+            id: 'td-' + Math.random().toString(36).substr(2, 7),
+            title: initialTodoTitle.trim(),
+            deadline: initialDeadline || today,
+            priority: initialPriority || 'medium',
+            category: initialCategory || 'Work',
+            recurrence: initialRecurrence || 'none',
+            done: false,
+            createdAt: new Date().toISOString(),
+          })
         }
 
-        // Save current user's data before switching
-        const current = get().currentUser
+        // Add a helpful starter to-do to kick off the streak!
+        initialTodos.push({
+          id: 'td-welcome-' + Math.random().toString(36).substr(2, 6),
+          title: `Welcome, ${trimmedName}! Complete your first task to start your daily streak 🔥`,
+          description: 'Click the checkbox on the left to check off your first task and ignite your streak!',
+          deadline: today,
+          category: 'Personal',
+          priority: 'high',
+          done: false,
+          createdAt: new Date().toISOString(),
+        })
+
         const currentAccountData = get().accountData || {}
         const updatedAccountData = { ...currentAccountData }
+
+        // Save current user data if there was one
+        const current = get().currentUser
         if (current) {
           updatedAccountData[current.id] = {
-            hobbies: get().hobbies,
-            milestones: get().milestones,
-            sessions: get().sessions,
+            todos: get().todos,
             streakCount: get().streakCount,
-            lastActiveDate: get().lastActiveDate,
+            lastCompletedDate: get().lastCompletedDate,
+            streakHistory: get().streakHistory,
           }
         }
 
-        // Add new account's data
-        updatedAccountData[accountId] = {
-          hobbies: newHobbies,
-          milestones: newMilestones,
-          sessions: [],
-          streakCount: 1,
-          lastActiveDate: new Date().toISOString().split('T')[0],
+        const newUserData = {
+          todos: initialTodos,
+          streakCount: 0,
+          lastCompletedDate: null,
+          streakHistory: [],
         }
 
-        // Sign in anonymously and save to Firestore
+        updatedAccountData[accountId] = newUserData
+
         ensureFirebaseAuth().then((uid) => {
           if (!uid) return
           set({ firebaseUid: uid })
           saveUserToFirestore(uid, newAccount)
-          if (newHobbies[0]) {
-            syncHobbyToFirestore(uid, newHobbies[0])
-          }
-          if (newMilestones[0]) {
-            syncMilestoneToFirestore(uid, newMilestones[0])
-          }
+          saveFullAccountToFirestore(uid, newAccount, newUserData)
         })
 
         set((state) => ({
           currentUser: newAccount,
           accounts: [...state.accounts.filter((a) => a.id !== newAccount.id), newAccount],
           accountData: updatedAccountData,
-          hobbies: newHobbies,
-          milestones: newMilestones,
-          sessions: [],
-          streakCount: 1,
-          lastActiveDate: new Date().toISOString().split('T')[0],
+          todos: initialTodos,
+          streakCount: 0,
+          lastCompletedDate: null,
+          streakHistory: [],
           isOnboarded: true,
           screen: 'home',
-          activeNav: 'hobbies',
+          activeNav: 'todos',
         }))
       },
 
@@ -173,40 +596,42 @@ export const useStore = create<AppStore>()(
         const target = get().accounts.find((a) => a.id === accountId)
         if (!target) return
 
-        // Save current user's data first
         const current = get().currentUser
         const allAccountData = get().accountData || {}
         const updatedAccountData = { ...allAccountData }
         if (current) {
           updatedAccountData[current.id] = {
-            hobbies: get().hobbies,
-            milestones: get().milestones,
-            sessions: get().sessions,
+            todos: get().todos,
             streakCount: get().streakCount,
-            lastActiveDate: get().lastActiveDate,
+            lastCompletedDate: get().lastCompletedDate,
+            streakHistory: get().streakHistory,
+          }
+          const uid = get().firebaseUid || getFirebaseUid()
+          if (uid) {
+            saveFullAccountToFirestore(uid, current, updatedAccountData[current.id])
           }
         }
 
-        // Retrieve target account's data (or fall back to current if not yet indexed)
         const targetData = updatedAccountData[accountId] || {
-          hobbies: get().hobbies,
-          milestones: get().milestones,
-          sessions: get().sessions,
-          streakCount: get().streakCount || 1,
-          lastActiveDate: get().lastActiveDate || new Date().toISOString().split('T')[0],
+          todos: [],
+          streakCount: 0,
+          lastCompletedDate: null,
+          streakHistory: [],
         }
 
         set({
           currentUser: target,
           accountData: updatedAccountData,
-          hobbies: targetData.hobbies,
-          milestones: targetData.milestones,
-          sessions: targetData.sessions,
-          streakCount: targetData.streakCount,
-          lastActiveDate: targetData.lastActiveDate,
+          todos: targetData.todos || [],
+          streakCount: targetData.streakCount || 0,
+          lastCompletedDate: targetData.lastCompletedDate || null,
+          streakHistory: targetData.streakHistory || [],
+          soundEnabled: targetData.soundEnabled ?? true,
+          emailReminder: targetData.emailReminder || defaultEmailReminder,
+          aiSettings: targetData.aiSettings || defaultAISettings,
           isOnboarded: true,
           screen: 'home',
-          activeNav: 'hobbies',
+          activeNav: 'todos',
         })
 
         get().syncWithFirestore()
@@ -218,20 +643,24 @@ export const useStore = create<AppStore>()(
         const updatedAccountData = { ...allAccountData }
         if (current) {
           updatedAccountData[current.id] = {
-            hobbies: get().hobbies,
-            milestones: get().milestones,
-            sessions: get().sessions,
+            todos: get().todos,
             streakCount: get().streakCount,
-            lastActiveDate: get().lastActiveDate,
+            lastCompletedDate: get().lastCompletedDate,
+            streakHistory: get().streakHistory,
+          }
+          const uid = get().firebaseUid || getFirebaseUid()
+          if (uid) {
+            saveFullAccountToFirestore(uid, current, updatedAccountData[current.id])
           }
         }
 
         set({
           currentUser: null,
           accountData: updatedAccountData,
+          todos: [],
           isOnboarded: false,
           screen: 'home',
-          activeNav: 'hobbies',
+          activeNav: 'todos',
         })
       },
 
@@ -240,14 +669,20 @@ export const useStore = create<AppStore>()(
         const allAccountData = { ...(get().accountData || {}) }
         delete allAccountData[accountId]
 
+        const uid = get().firebaseUid || getFirebaseUid()
+        if (uid) {
+          deleteAccountFromFirestore(uid, accountId)
+        }
+
         if (get().currentUser?.id === accountId) {
           set({
             currentUser: null,
             accounts: remaining,
             accountData: allAccountData,
+            todos: [],
             isOnboarded: false,
             screen: 'home',
-            activeNav: 'hobbies',
+            activeNav: 'todos',
           })
         } else {
           set({
@@ -262,163 +697,29 @@ export const useStore = create<AppStore>()(
           currentUser: null,
           accounts: [],
           accountData: {},
-          hobbies: [],
-          milestones: [],
-          sessions: [],
+          todos: [],
           streakCount: 0,
-          lastActiveDate: null,
+          lastCompletedDate: null,
+          streakHistory: [],
           isOnboarded: false,
           screen: 'home',
-          activeNav: 'hobbies',
+          activeNav: 'todos',
         })
       },
 
       setNav: (nav) => set({ activeNav: nav }),
       setScreen: (screen) => set({ screen }),
-      setSelectedHobby: (id) => set({ selectedHobbyId: id }),
 
-      addHobby: (hobby) => {
-        const uid = get().firebaseUid || getFirebaseUid()
-        if (uid) {
-          syncHobbyToFirestore(uid, hobby)
-        }
-        set((state) => ({
-          hobbies: [...state.hobbies, hobby],
-        }))
-      },
-
-      deleteHobby: (hobbyId) => set((state) => ({
-        hobbies: state.hobbies.filter((h) => h.id !== hobbyId),
-        milestones: state.milestones.filter((m) => m.hobbyId !== hobbyId),
-        sessions: state.sessions.filter((s) => s.hobbyId !== hobbyId),
-      })),
-
-      addMilestone: (milestone) => {
-        const uid = get().firebaseUid || getFirebaseUid()
-        const newMilestone: Milestone = {
-          ...milestone,
-          id: 'm-' + Math.random().toString(36).substr(2, 7),
-        }
-        if (uid) {
-          syncMilestoneToFirestore(uid, newMilestone)
-        }
-        set((state) => ({
-          milestones: [...state.milestones, newMilestone],
-        }))
-      },
-
-      deleteMilestone: (milestoneId) => set((state) => ({
-        milestones: state.milestones.filter((m) => m.id !== milestoneId),
-      })),
-
-      toggleCheckpoint: (milestoneId, checkpointId) => {
-        set((state) => {
-          const newMilestones = state.milestones.map((m) => {
-            if (m.id !== milestoneId) return m
-            return {
-              ...m,
-              checkpoints: m.checkpoints.map((cp) =>
-                cp.id === checkpointId ? { ...cp, done: !cp.done } : cp
-              ),
-            }
-          })
-
-          const milestone = state.milestones.find((m) => m.id === milestoneId)
-          if (!milestone) return { milestones: newMilestones }
-
-          const hobbyId = milestone.hobbyId
-          const newHobbies = state.hobbies.map((h) => {
-            if (h.id !== hobbyId) return h
-
-            const hobbyMilestones = newMilestones.filter((m) => m.hobbyId === hobbyId)
-            const totalCheckpoints = hobbyMilestones.reduce((acc, m) => acc + m.checkpoints.length, 0)
-            const doneCheckpoints = hobbyMilestones.reduce(
-              (acc, m) => acc + m.checkpoints.filter((cp) => cp.done).length,
-              0
-            )
-
-            return {
-              ...h,
-              progress: totalCheckpoints === 0 ? 0 : doneCheckpoints / totalCheckpoints,
-            }
-          })
-
-          const uid = get().firebaseUid || getFirebaseUid()
-          if (uid) {
-            const updatedMilestone = newMilestones.find((m) => m.id === milestoneId)
-            const updatedHobby = newHobbies.find((h) => h.id === hobbyId)
-            if (updatedMilestone) syncMilestoneToFirestore(uid, updatedMilestone)
-            if (updatedHobby) syncHobbyToFirestore(uid, updatedHobby)
-          }
-
-          return { milestones: newMilestones, hobbies: newHobbies }
-        })
-      },
-
-      saveSession: (sessionData) => {
-        const today = new Date().toISOString().split('T')[0]
-        const { hobbyId, duration } = sessionData
-
-        set((state) => {
-          const newSession: PracticeSession = {
-            ...sessionData,
-            id: Math.random().toString(36).substr(2, 9),
-            date: today,
-          }
-
-          const newSessions = [...state.sessions, newSession]
-
-          const newHobbies = state.hobbies.map((h) => {
-            if (h.id !== hobbyId) return h
-            return {
-              ...h,
-              hours: h.hours + duration / 60,
-              sessions: h.sessions + 1,
-            }
-          })
-
-          const uid = get().firebaseUid || getFirebaseUid()
-          if (uid) {
-            syncSessionToFirestore(uid, newSession)
-            const updatedHobby = newHobbies.find((h) => h.id === hobbyId)
-            if (updatedHobby) syncHobbyToFirestore(uid, updatedHobby)
-          }
-
-          return {
-            sessions: newSessions,
-            hobbies: newHobbies,
-            lastActiveDate: today,
-          }
-        })
-
-        get().updateStreak()
-      },
-
-      updateStreak: () => {
-        const today = new Date()
-        const todayStr = today.toISOString().split('T')[0]
-        const lastActive = get().lastActiveDate
-
-        if (!lastActive) {
-          set({ streakCount: 1, lastActiveDate: todayStr })
-          return
-        }
-
-        if (lastActive === todayStr) return
-
-        const lastDate = new Date(lastActive)
-        const diffTime = Math.abs(today.getTime() - lastDate.getTime())
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-        if (diffDays === 1) {
-          set((state) => ({ streakCount: state.streakCount + 1, lastActiveDate: todayStr }))
-        } else if (diffDays > 1) {
-          set({ streakCount: 1, lastActiveDate: todayStr })
-        }
-      },
+      // Legacy compatibility stubs
+      addHobby: () => {},
+      deleteHobby: () => {},
+      addMilestone: () => {},
+      deleteMilestone: () => {},
+      toggleCheckpoint: () => {},
+      saveSession: () => {},
     }),
     {
-      name: 'craftpath-storage-v4',
+      name: 'craftpath-todo-storage-v2',
     }
   )
 )

@@ -34,6 +34,14 @@ react(),
       host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
       port: parseInt(process.env.PORT || '8443'),
       strictPort: true,
+      proxy: {
+        '/groq-api': {
+          target: 'https://api.groq.com',
+          changeOrigin: true,
+          secure: true,
+          rewrite: (path) => path.replace(/^\/groq-api/, ''),
+        },
+      },
       watch: {
         ignored: [
           '**/.figma/**',
@@ -43,6 +51,14 @@ react(),
     preview: {
       host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
       port: parseInt(process.env.PORT || '8443'),
+      proxy: {
+        '/groq-api': {
+          target: 'https://api.groq.com',
+          changeOrigin: true,
+          secure: true,
+          rewrite: (path) => path.replace(/^\/groq-api/, ''),
+        },
+      },
     },
   }
 })

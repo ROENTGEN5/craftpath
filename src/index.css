@@ -6,6 +6,10 @@
   --font-body: 'Outfit', system-ui, sans-serif;
 }
 
+.font-display {
+  font-family: var(--font-display);
+}
+
 * {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

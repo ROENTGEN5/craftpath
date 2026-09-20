@@ -1,6 +1,22 @@
 export type Screen = 'home' | 'detail'
 export type Tab = 'milestones' | 'journal'
-export type Nav = 'hobbies' | 'explore' | 'analytics' | 'profile'
+export type Nav = 'todos' | 'calendar' | 'analytics' | 'profile' | 'hobbies' | 'explore'
+
+export type Priority = 'low' | 'medium' | 'high'
+export type Recurrence = 'none' | 'daily' | 'weekdays' | 'weekly'
+
+export interface TodoItem {
+  id: string;
+  title: string;
+  description?: string;
+  deadline: string; // YYYY-MM-DD or YYYY-MM-DDTHH:mm
+  category: string;
+  priority: Priority;
+  done: boolean;
+  recurrence?: Recurrence; // 'none' | 'daily' | 'weekdays' | 'weekly'
+  completedAt?: string; // ISO string
+  createdAt: string; // ISO string
+}
 
 export interface Checkpoint {
   id: string;
@@ -43,22 +59,52 @@ export interface UserAccount {
   createdAt: string;
 }
 
+export interface EmailReminderSettings {
+  enabled: boolean;
+  email: string;
+  time: string; // e.g. "08:00"
+  frequency: 'daily' | 'weekdays';
+  lastSentDate?: string;
+}
+
+export type AIPersonality = 'savage' | 'sergeant' | 'mentor';
+
+export interface AISettings {
+  groqApiKey: string;
+  personality: AIPersonality;
+  enabled: boolean;
+  lastRoast?: string;
+  lastRoastDate?: string;
+}
+
 export interface AccountData {
-  hobbies: Hobby[];
-  milestones: Milestone[];
-  sessions: PracticeSession[];
+  todos: TodoItem[];
   streakCount: number;
-  lastActiveDate: string | null;
+  lastCompletedDate: string | null;
+  streakHistory: string[];
+  soundEnabled?: boolean;
+  emailReminder?: EmailReminderSettings;
+  aiSettings?: AISettings;
+  hobbies?: Hobby[];
+  milestones?: Milestone[];
+  sessions?: PracticeSession[];
+  lastActiveDate?: string | null;
 }
 
 export interface AppState {
   currentUser: UserAccount | null;
   accounts: UserAccount[];
   accountData?: Record<string, AccountData>;
+  todos: TodoItem[];
+  streakCount: number;
+  lastCompletedDate: string | null;
+  streakHistory: string[];
+  soundEnabled: boolean;
+  emailReminder: EmailReminderSettings;
+  aiSettings: AISettings;
   hobbies: Hobby[];
   milestones: Milestone[];
   sessions: PracticeSession[];
-  streakCount: number;
   lastActiveDate: string | null;
   activeNav: Nav;
   selectedHobbyId: string | null;
@@ -66,3 +112,4 @@ export interface AppState {
   isOnboarded: boolean;
   firebaseUid: string | null;
 }
+
