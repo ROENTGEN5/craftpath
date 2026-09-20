@@ -114,8 +114,12 @@ function Checkbox({ checked, color, onToggle }: { checked: boolean; color: strin
 /* ─── Onboarding / Account Creation View ─── */
 function OnboardingScreen({
   onComplete,
+  onSwitchToLogin,
+  hasExistingAccounts,
 }: {
   onComplete: (name: string, hobby: string, category: string, milestone: string) => void
+  onSwitchToLogin?: () => void
+  hasExistingAccounts?: boolean
 }) {
   const [name, setName] = useState('')
   const [hobby, setHobby] = useState('')
@@ -236,7 +240,102 @@ function OnboardingScreen({
               Create Account & Enter Studio ✨
             </button>
           </div>
+
+          {/* Switch to account picker */}
+          {hasExistingAccounts && onSwitchToLogin && (
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={onSwitchToLogin}
+                className="text-sm text-[#6E8B6B] hover:text-[#5E795B] font-semibold underline underline-offset-2 transition-colors cursor-pointer"
+              >
+                ← Back to account selection
+              </button>
+            </div>
+          )}
         </form>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Account Picker Screen ─── */
+function AccountPickerScreen({
+  accounts,
+  onSelectAccount,
+  onCreateNew,
+}: {
+  accounts: { id: string; name: string; avatarColor: string; createdAt: string }[]
+  onSelectAccount: (accountId: string) => void
+  onCreateNew: () => void
+}) {
+  return (
+    <div className="min-h-screen bg-[#F6F3EE] flex items-center justify-center p-6 font-sans text-[#1E1C19]">
+      <div className="max-w-md w-full bg-white rounded-3xl p-8 sm:p-10 shadow-lg border border-[#EAE4DC]">
+        {/* Brand Badge */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 rounded-2xl bg-[#6E8B6B] flex items-center justify-center text-white shadow-sm shadow-[#6E8B6B]/30">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </div>
+          <div>
+            <h1 style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-3xl text-[#1E1C19] font-normal leading-tight">
+              CraftPath
+            </h1>
+            <p className="text-xs text-[#8F8A80] font-medium tracking-wide uppercase">Welcome back — pick your studio</p>
+          </div>
+        </div>
+
+        <p className="text-sm text-[#6C675E] leading-relaxed mb-6">
+          Select an existing account to continue where you left off, or start a brand new creative journey.
+        </p>
+
+        {/* Account List */}
+        <div className="space-y-3 mb-6">
+          {accounts.map((account) => (
+            <button
+              key={account.id}
+              onClick={() => onSelectAccount(account.id)}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAF7F2] border border-[#EAE4DC] hover:border-[#6E8B6B] hover:shadow-md transition-all cursor-pointer group"
+            >
+              {/* Avatar */}
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm transition-transform group-hover:scale-105"
+                style={{ backgroundColor: account.avatarColor }}
+              >
+                {account.name.charAt(0).toUpperCase()}
+              </div>
+              {/* Info */}
+              <div className="text-left flex-1 min-w-0">
+                <p className="font-semibold text-[#1E1C19] text-base truncate">{account.name}</p>
+                <p className="text-xs text-[#8F8A80]">Created {account.createdAt}</p>
+              </div>
+              {/* Arrow */}
+              <svg className="w-5 h-5 text-[#C4BFB5] group-hover:text-[#6E8B6B] transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          ))}
+        </div>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex-1 h-px bg-[#EAE4DC]" />
+          <span className="text-xs text-[#8F8A80] font-medium uppercase tracking-wider">or</span>
+          <div className="flex-1 h-px bg-[#EAE4DC]" />
+        </div>
+
+        {/* Create New */}
+        <button
+          onClick={onCreateNew}
+          className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl border-2 border-dashed border-[#D1CBBF] hover:border-[#6E8B6B] hover:bg-[#6E8B6B]/5 text-[#6C675E] hover:text-[#6E8B6B] font-semibold text-sm transition-all cursor-pointer"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          Create New Account
+        </button>
       </div>
     </div>
   )
@@ -1662,12 +1761,15 @@ function App() {
     isOnboarded,
     createAccount,
     resetToNewUser,
+    accounts,
+    switchAccount,
   } = useStore()
 
   const [showLogModal, setShowLogModal] = useState(false)
   const [showAddMilestoneModal, setShowAddMilestoneModal] = useState(false)
   const [showAddHobbyModal, setShowAddHobbyModal] = useState(false)
   const [showAccountModal, setShowAccountModal] = useState(false)
+  const [showCreateNew, setShowCreateNew] = useState(false)
 
   const [activeTab, setActiveTab] = useState<Tab>('milestones')
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set())
@@ -1740,13 +1842,30 @@ function App() {
     setModalHobbyId(newHobby.id)
   }
 
-  // If user is not onboarded, show onboarding / account creation screen
+  // If user is not onboarded, decide what to show
   if (!isOnboarded) {
+    // If accounts exist and user hasn't clicked "Create New", show the picker
+    if (accounts.length > 0 && !showCreateNew) {
+      return (
+        <AccountPickerScreen
+          accounts={accounts}
+          onSelectAccount={(accountId) => {
+            switchAccount(accountId)
+          }}
+          onCreateNew={() => setShowCreateNew(true)}
+        />
+      )
+    }
+
+    // Otherwise show the create account form
     return (
       <OnboardingScreen
         onComplete={(name, hobbyName, category, milestoneTitle) => {
           createAccount(name, hobbyName, category, milestoneTitle)
+          setShowCreateNew(false)
         }}
+        hasExistingAccounts={accounts.length > 0}
+        onSwitchToLogin={() => setShowCreateNew(false)}
       />
     )
   }

@@ -145,7 +145,7 @@ export const useStore = create<AppStore>()(
       switchAccount: (accountId) => {
         const target = get().accounts.find((a) => a.id === accountId)
         if (target) {
-          set({ currentUser: target })
+          set({ currentUser: target, isOnboarded: true, screen: 'home', activeNav: 'hobbies' })
           get().syncWithFirestore()
         }
       },
