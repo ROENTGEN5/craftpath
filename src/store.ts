@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { AppState, Hobby, Milestone, PracticeSession, Nav, Screen, UserAccount } from './types'
 import {
+  ensureFirebaseAuth,
+  getFirebaseUid,
   saveUserToFirestore,
   syncHobbyToFirestore,
   syncMilestoneToFirestore,
@@ -45,6 +47,7 @@ const initialState: AppState = {
   selectedHobbyId: null,
   screen: 'home',
   isOnboarded: false,
+  firebaseUid: null,
 }
 
 export const useStore = create<AppStore>()(
@@ -53,9 +56,9 @@ export const useStore = create<AppStore>()(
       ...initialState,
 
       syncWithFirestore: async () => {
-        const user = get().currentUser
-        if (!user) return
-        const data = await loadUserDataFromFirestore(user.id)
+        const uid = get().firebaseUid || getFirebaseUid()
+        if (!uid) return
+        const data = await loadUserDataFromFirestore(uid)
         if (data && (data.hobbies.length > 0 || data.milestones.length > 0 || data.sessions.length > 0)) {
           set({
             hobbies: data.hobbies.length > 0 ? data.hobbies : get().hobbies,
@@ -112,14 +115,18 @@ export const useStore = create<AppStore>()(
           }
         }
 
-        // Save to Firestore in background
-        saveUserToFirestore(newAccount)
-        if (newHobbies[0]) {
-          syncHobbyToFirestore(newAccount.id, newHobbies[0])
-        }
-        if (newMilestones[0]) {
-          syncMilestoneToFirestore(newAccount.id, newMilestones[0])
-        }
+        // Sign in anonymously and save to Firestore
+        ensureFirebaseAuth().then((uid) => {
+          if (!uid) return
+          set({ firebaseUid: uid })
+          saveUserToFirestore(uid, newAccount)
+          if (newHobbies[0]) {
+            syncHobbyToFirestore(uid, newHobbies[0])
+          }
+          if (newMilestones[0]) {
+            syncMilestoneToFirestore(uid, newMilestones[0])
+          }
+        })
 
         set((state) => ({
           currentUser: newAccount,
@@ -162,9 +169,9 @@ export const useStore = create<AppStore>()(
       setSelectedHobby: (id) => set({ selectedHobbyId: id }),
 
       addHobby: (hobby) => {
-        const user = get().currentUser
-        if (user) {
-          syncHobbyToFirestore(user.id, hobby)
+        const uid = get().firebaseUid || getFirebaseUid()
+        if (uid) {
+          syncHobbyToFirestore(uid, hobby)
         }
         set((state) => ({
           hobbies: [...state.hobbies, hobby],
@@ -178,13 +185,13 @@ export const useStore = create<AppStore>()(
       })),
 
       addMilestone: (milestone) => {
-        const user = get().currentUser
+        const uid = get().firebaseUid || getFirebaseUid()
         const newMilestone: Milestone = {
           ...milestone,
           id: 'm-' + Math.random().toString(36).substr(2, 7),
         }
-        if (user) {
-          syncMilestoneToFirestore(user.id, newMilestone)
+        if (uid) {
+          syncMilestoneToFirestore(uid, newMilestone)
         }
         set((state) => ({
           milestones: [...state.milestones, newMilestone],
@@ -227,12 +234,12 @@ export const useStore = create<AppStore>()(
             }
           })
 
-          const user = get().currentUser
-          if (user) {
+          const uid = get().firebaseUid || getFirebaseUid()
+          if (uid) {
             const updatedMilestone = newMilestones.find((m) => m.id === milestoneId)
             const updatedHobby = newHobbies.find((h) => h.id === hobbyId)
-            if (updatedMilestone) syncMilestoneToFirestore(user.id, updatedMilestone)
-            if (updatedHobby) syncHobbyToFirestore(user.id, updatedHobby)
+            if (updatedMilestone) syncMilestoneToFirestore(uid, updatedMilestone)
+            if (updatedHobby) syncHobbyToFirestore(uid, updatedHobby)
           }
 
           return { milestones: newMilestones, hobbies: newHobbies }
@@ -261,11 +268,11 @@ export const useStore = create<AppStore>()(
             }
           })
 
-          const user = get().currentUser
-          if (user) {
-            syncSessionToFirestore(user.id, newSession)
+          const uid = get().firebaseUid || getFirebaseUid()
+          if (uid) {
+            syncSessionToFirestore(uid, newSession)
             const updatedHobby = newHobbies.find((h) => h.id === hobbyId)
-            if (updatedHobby) syncHobbyToFirestore(user.id, updatedHobby)
+            if (updatedHobby) syncHobbyToFirestore(uid, updatedHobby)
           }
 
           return {
@@ -302,7 +309,7 @@ export const useStore = create<AppStore>()(
       },
     }),
     {
-      name: 'craftpath-storage-v3',
+      name: 'craftpath-storage-v4',
     }
   )
 )

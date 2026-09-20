@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { getAuth, signInAnonymously, onAuthStateChanged, type User } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
@@ -23,54 +23,85 @@ import {
   doc,
   setDoc,
   getDocs,
-  deleteDoc,
-  onSnapshot,
 } from 'firebase/firestore'
 import type { Hobby, Milestone, PracticeSession, UserAccount } from './types'
 
-export async function saveUserToFirestore(user: UserAccount) {
+/**
+ * Sign in anonymously to Firebase Auth.
+ * Returns the Firebase Auth UID which we use as the Firestore document path.
+ * This ensures security rules (request.auth.uid == userId) are satisfied.
+ */
+export async function ensureFirebaseAuth(): Promise<string | null> {
   try {
-    await setDoc(doc(db, 'users', user.id), {
-      id: user.id,
-      name: user.name,
-      avatarColor: user.avatarColor,
-      createdAt: user.createdAt,
+    if (auth.currentUser) {
+      return auth.currentUser.uid
+    }
+    const credential = await signInAnonymously(auth)
+    return credential.user.uid
+  } catch (error) {
+    console.warn('Firebase anonymous auth error:', error)
+    return null
+  }
+}
+
+/**
+ * Get the current Firebase Auth UID, or null if not signed in.
+ */
+export function getFirebaseUid(): string | null {
+  return auth.currentUser?.uid || null
+}
+
+/**
+ * Listen for auth state changes. Calls the callback with the Firebase UID
+ * when auth state resolves (signed in or null).
+ */
+export function onFirebaseAuthReady(callback: (uid: string | null) => void) {
+  return onAuthStateChanged(auth, (user: User | null) => {
+    callback(user?.uid || null)
+  })
+}
+
+export async function saveUserToFirestore(firebaseUid: string, user: UserAccount) {
+  try {
+    await setDoc(doc(db, 'users', firebaseUid), {
+      ...user,
+      firebaseUid,
     }, { merge: true })
   } catch (error) {
     console.warn('Firestore saveUser error:', error)
   }
 }
 
-export async function syncHobbyToFirestore(userId: string, hobby: Hobby) {
+export async function syncHobbyToFirestore(firebaseUid: string, hobby: Hobby) {
   try {
-    await setDoc(doc(db, 'users', userId, 'hobbies', hobby.id), hobby)
+    await setDoc(doc(db, 'users', firebaseUid, 'hobbies', hobby.id), hobby)
   } catch (error) {
     console.warn('Firestore syncHobby error:', error)
   }
 }
 
-export async function syncMilestoneToFirestore(userId: string, milestone: Milestone) {
+export async function syncMilestoneToFirestore(firebaseUid: string, milestone: Milestone) {
   try {
-    await setDoc(doc(db, 'users', userId, 'milestones', milestone.id), milestone)
+    await setDoc(doc(db, 'users', firebaseUid, 'milestones', milestone.id), milestone)
   } catch (error) {
     console.warn('Firestore syncMilestone error:', error)
   }
 }
 
-export async function syncSessionToFirestore(userId: string, session: PracticeSession) {
+export async function syncSessionToFirestore(firebaseUid: string, session: PracticeSession) {
   try {
-    await setDoc(doc(db, 'users', userId, 'sessions', session.id), session)
+    await setDoc(doc(db, 'users', firebaseUid, 'sessions', session.id), session)
   } catch (error) {
     console.warn('Firestore syncSession error:', error)
   }
 }
 
-export async function loadUserDataFromFirestore(userId: string) {
+export async function loadUserDataFromFirestore(firebaseUid: string) {
   try {
     const [hobbiesSnap, milestonesSnap, sessionsSnap] = await Promise.all([
-      getDocs(collection(db, 'users', userId, 'hobbies')),
-      getDocs(collection(db, 'users', userId, 'milestones')),
-      getDocs(collection(db, 'users', userId, 'sessions')),
+      getDocs(collection(db, 'users', firebaseUid, 'hobbies')),
+      getDocs(collection(db, 'users', firebaseUid, 'milestones')),
+      getDocs(collection(db, 'users', firebaseUid, 'sessions')),
     ])
 
     const hobbies = hobbiesSnap.docs.map((d) => d.data() as Hobby)

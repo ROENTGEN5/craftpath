@@ -55,4 +55,5 @@ export interface AppState {
   selectedHobbyId: string | null;
   screen: Screen;
   isOnboarded: boolean;
+  firebaseUid: string | null;
 }
