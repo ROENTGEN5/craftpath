@@ -36,12 +36,16 @@ export function animateModalIn(
   options?: { duration?: number }
 ) {
   if (!target) return
-  return animate(target, {
-    scale: [0.94, 1],
-    opacity: [0, 1],
-    duration: options?.duration ?? 350,
-    ease: 'outBack',
-  })
+  try {
+    return animate(target, {
+      scale: [0.94, 1],
+      opacity: [0, 1],
+      duration: options?.duration ?? 350,
+      ease: 'outBack',
+    })
+  } catch (err) {
+    console.error('animateModalIn error:', err)
+  }
 }
 
 /**
@@ -57,18 +61,22 @@ export function animateCounter(
   }
 ) {
   if (!element) return
-  const targetObj = { val: 0 }
-  const suffix = options?.suffix ?? ''
-  const decimals = options?.decimals ?? 0
+  try {
+    const targetObj = { val: 0 }
+    const suffix = options?.suffix ?? ''
+    const decimals = options?.decimals ?? 0
 
-  return animate(targetObj, {
-    val: endValue,
-    duration: options?.duration ?? 900,
-    ease: 'outExpo',
-    onUpdate: () => {
-      element.textContent = `${decimals > 0 ? targetObj.val.toFixed(decimals) : Math.round(targetObj.val)}${suffix}`
-    },
-  })
+    return animate(targetObj, {
+      val: endValue,
+      duration: options?.duration ?? 900,
+      ease: 'outExpo',
+      onUpdate: () => {
+        element.textContent = `${decimals > 0 ? targetObj.val.toFixed(decimals) : Math.round(targetObj.val)}${suffix}`
+      },
+    })
+  } catch (err) {
+    console.error('animateCounter error:', err)
+  }
 }
 
 /**
@@ -76,11 +84,15 @@ export function animateCounter(
  */
 export function animateBounce(target: HTMLElement | null) {
   if (!target) return
-  return animate(target, {
-    scale: [1, 1.25, 0.95, 1],
-    duration: 350,
-    ease: 'inOutQuad',
-  })
+  try {
+    return animate(target, {
+      scale: [1, 1.25, 0.95, 1],
+      duration: 350,
+      ease: 'inOutQuad',
+    })
+  } catch (err) {
+    console.error('animateBounce error:', err)
+  }
 }
 
 /**
@@ -88,12 +100,16 @@ export function animateBounce(target: HTMLElement | null) {
  */
 export function animateJelly(target: HTMLElement | null) {
   if (!target) return
-  return animate(target, {
-    scaleX: [1, 1.28, 0.88, 1.12, 0.96, 1],
-    scaleY: [1, 0.74, 1.22, 0.92, 1.04, 1],
-    duration: 500,
-    ease: 'outBack',
-  })
+  try {
+    return animate(target, {
+      scaleX: [1, 1.28, 0.88, 1.12, 0.96, 1],
+      scaleY: [1, 0.74, 1.22, 0.92, 1.04, 1],
+      duration: 500,
+      ease: 'outBack',
+    })
+  } catch (err) {
+    console.error('animateJelly error:', err)
+  }
 }
 
 /**
@@ -105,11 +121,15 @@ export function animateProgressBar(
   options?: { duration?: number }
 ) {
   if (!target) return
-  return animate(target, {
-    width: `${Math.min(100, Math.max(0, percent))}%`,
-    duration: options?.duration ?? 700,
-    ease: 'outCubic',
-  })
+  try {
+    return animate(target, {
+      width: `${Math.min(100, Math.max(0, percent))}%`,
+      duration: options?.duration ?? 700,
+      ease: 'outCubic',
+    })
+  } catch (err) {
+    console.error('animateProgressBar error:', err)
+  }
 }
 
 /**
@@ -143,49 +163,53 @@ export function spawnParticleBurst(
     maxSize?: number
   }
 ) {
-  const container = getParticleContainer()
-  const count = options?.count ?? 16
-  const colors = options?.colors ?? ['#6E8B6B', '#CC8F3F', '#B26E53', '#E0A96D', '#4F7959', '#D5CEC4']
-  const spread = options?.spread ?? 75
-  const maxSize = options?.maxSize ?? 9
+  try {
+    const container = getParticleContainer()
+    const count = options?.count ?? 16
+    const colors = options?.colors ?? ['#6E8B6B', '#CC8F3F', '#B26E53', '#E0A96D', '#4F7959', '#D5CEC4']
+    const spread = options?.spread ?? 75
+    const maxSize = options?.maxSize ?? 9
 
-  for (let i = 0; i < count; i++) {
-    const particle = document.createElement('div')
-    const size = Math.random() * (maxSize - 4) + 4
-    const isCircle = Math.random() > 0.4
-    const isDiamond = !isCircle && Math.random() > 0.5
-    const color = colors[Math.floor(Math.random() * colors.length)]
+    for (let i = 0; i < count; i++) {
+      const particle = document.createElement('div')
+      const size = Math.random() * (maxSize - 4) + 4
+      const isCircle = Math.random() > 0.4
+      const isDiamond = !isCircle && Math.random() > 0.5
+      const color = colors[Math.floor(Math.random() * colors.length)]
 
-    particle.style.position = 'absolute'
-    particle.style.left = `${x}px`
-    particle.style.top = `${y}px`
-    particle.style.width = `${size}px`
-    particle.style.height = `${size}px`
-    particle.style.backgroundColor = color
-    particle.style.borderRadius = isCircle ? '50%' : isDiamond ? '2px' : '3px'
-    particle.style.pointerEvents = 'none'
-    particle.style.transform = isDiamond ? 'rotate(45deg)' : 'none'
-    particle.style.boxShadow = `0 2px 6px ${color}40`
+      particle.style.position = 'absolute'
+      particle.style.left = `${x}px`
+      particle.style.top = `${y}px`
+      particle.style.width = `${size}px`
+      particle.style.height = `${size}px`
+      particle.style.backgroundColor = color
+      particle.style.borderRadius = isCircle ? '50%' : isDiamond ? '2px' : '3px'
+      particle.style.pointerEvents = 'none'
+      particle.style.transform = isDiamond ? 'rotate(45deg)' : 'none'
+      particle.style.boxShadow = `0 2px 6px ${color}40`
 
-    container.appendChild(particle)
+      container.appendChild(particle)
 
-    const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.6
-    const distance = spread * (0.4 + Math.random() * 0.7)
-    const destX = Math.cos(angle) * distance
-    const destY = Math.sin(angle) * distance - Math.random() * 15 // slight upward bias
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.6
+      const distance = spread * (0.4 + Math.random() * 0.7)
+      const destX = Math.cos(angle) * distance
+      const destY = Math.sin(angle) * distance - Math.random() * 15 // slight upward bias
 
-    animate(particle, {
-      translateX: destX,
-      translateY: destY,
-      scale: [1, Math.random() * 0.4 + 0.3],
-      rotate: (Math.random() - 0.5) * 360,
-      opacity: [1, 0],
-      duration: 650 + Math.random() * 300,
-      ease: 'outExpo',
-      onComplete: () => {
-        particle.remove()
-      },
-    })
+      animate(particle, {
+        translateX: destX,
+        translateY: destY,
+        scale: [1, Math.random() * 0.4 + 0.3],
+        rotate: (Math.random() - 0.5) * 360,
+        opacity: [1, 0],
+        duration: 650 + Math.random() * 300,
+        ease: 'outExpo',
+        onComplete: () => {
+          particle.remove()
+        },
+      })
+    }
+  } catch (err) {
+    console.error('spawnParticleBurst error:', err)
   }
 }
 

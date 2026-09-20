@@ -27,7 +27,6 @@ textarea:focus {
 
 /* ─── 3D Magnetic Tilt Cards & Sheen ─── */
 .tilt-card {
-  transform-style: preserve-3d;
   will-change: transform;
   transition: box-shadow 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
@@ -39,16 +38,16 @@ textarea:focus {
 .tilt-card-sheen {
   position: absolute;
   inset: 0;
-  pointer-events: none;
+  pointer-events: none !important;
   border-radius: inherit;
   transition: opacity 0.3s ease;
   opacity: 0;
-  z-index: 20;
+  z-index: 0;
 }
 
 .tilt-3d-depth {
-  transform: translateZ(18px);
-  transform-style: preserve-3d;
+  position: relative;
+  z-index: 1;
 }
 
 /* ─── Living Ambient Background Animation ─── */

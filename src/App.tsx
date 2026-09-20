@@ -37,8 +37,8 @@ function TiltCard({
       style={style}
       className={`tilt-card relative overflow-hidden ${className}`}
     >
-      <div className="tilt-card-sheen" />
-      <div className="tilt-3d-depth h-full w-full">{children}</div>
+      <div className="tilt-card-sheen pointer-events-none" />
+      <div className="tilt-3d-depth h-full w-full relative z-10">{children}</div>
     </div>
   )
 }
@@ -913,7 +913,10 @@ function DashboardContent({
         {/* Right Column: Quick Practice Logger & Recent Journal (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
           {/* Quick Practice Shortcut */}
-          <TiltCard className="shortcut-box bg-gradient-to-br from-[#6E8B6B] to-[#557352] rounded-3xl p-6 sm:p-7 text-white shadow-sm">
+          <TiltCard
+            onClick={() => onOpenLogModal()}
+            className="shortcut-box bg-gradient-to-br from-[#6E8B6B] to-[#557352] rounded-3xl p-6 sm:p-7 text-white shadow-sm cursor-pointer"
+          >
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full">
                 Quick Logger
@@ -928,14 +931,20 @@ function DashboardContent({
             </p>
             <div className="mt-5">
               <button
+                type="button"
                 onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect()
-                  spawnParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, {
-                    colors: ['#6E8B6B', '#CC8F3F', '#FAF7F2', '#FFD166'],
-                    count: 16,
-                  })
-                  animateJelly(e.currentTarget)
+                  e.stopPropagation()
                   onOpenLogModal()
+                  try {
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    spawnParticleBurst(rect.left + rect.width / 2, rect.top + rect.height / 2, {
+                      colors: ['#6E8B6B', '#CC8F3F', '#FAF7F2', '#FFD166'],
+                      count: 16,
+                    })
+                    animateJelly(e.currentTarget)
+                  } catch (err) {
+                    console.error(err)
+                  }
                 }}
                 className="w-full bg-white text-[#557352] hover:bg-[#F7F4EF] font-bold py-3 px-4 rounded-xl text-sm transition-all shadow-sm text-center cursor-pointer active:scale-95"
               >
