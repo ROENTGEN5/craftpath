@@ -264,10 +264,12 @@ function AccountPickerScreen({
   accounts,
   onSelectAccount,
   onCreateNew,
+  onDeleteAccount,
 }: {
   accounts: { id: string; name: string; avatarColor: string; createdAt: string }[]
   onSelectAccount: (accountId: string) => void
   onCreateNew: () => void
+  onDeleteAccount?: (accountId: string) => void
 }) {
   return (
     <div className="min-h-screen bg-[#F6F3EE] flex items-center justify-center p-6 font-sans text-[#1E1C19]">
@@ -294,28 +296,51 @@ function AccountPickerScreen({
         {/* Account List */}
         <div className="space-y-3 mb-6">
           {accounts.map((account) => (
-            <button
+            <div
               key={account.id}
-              onClick={() => onSelectAccount(account.id)}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#FAF7F2] border border-[#EAE4DC] hover:border-[#6E8B6B] hover:shadow-md transition-all cursor-pointer group"
+              className="w-full flex items-center gap-3 p-4 rounded-2xl bg-[#FAF7F2] border border-[#EAE4DC] hover:border-[#6E8B6B] hover:shadow-md transition-all group"
             >
-              {/* Avatar */}
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm transition-transform group-hover:scale-105"
-                style={{ backgroundColor: account.avatarColor }}
+              <button
+                type="button"
+                onClick={() => onSelectAccount(account.id)}
+                className="flex items-center gap-4 flex-1 min-w-0 text-left cursor-pointer bg-transparent border-none p-0"
               >
-                {account.name.charAt(0).toUpperCase()}
-              </div>
-              {/* Info */}
-              <div className="text-left flex-1 min-w-0">
-                <p className="font-semibold text-[#1E1C19] text-base truncate">{account.name}</p>
-                <p className="text-xs text-[#8F8A80]">Created {account.createdAt}</p>
-              </div>
-              {/* Arrow */}
-              <svg className="w-5 h-5 text-[#C4BFB5] group-hover:text-[#6E8B6B] transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
+                {/* Avatar */}
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-sm transition-transform group-hover:scale-105"
+                  style={{ backgroundColor: account.avatarColor }}
+                >
+                  {account.name.charAt(0).toUpperCase()}
+                </div>
+                {/* Info */}
+                <div className="text-left flex-1 min-w-0">
+                  <p className="font-semibold text-[#1E1C19] text-base truncate">{account.name}</p>
+                  <p className="text-xs text-[#8F8A80]">Created {account.createdAt}</p>
+                </div>
+                {/* Arrow */}
+                <svg className="w-5 h-5 text-[#C4BFB5] group-hover:text-[#6E8B6B] transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+
+              {onDeleteAccount && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (window.confirm(`Delete account "${account.name}"?`)) {
+                      onDeleteAccount(account.id)
+                    }
+                  }}
+                  title={`Delete ${account.name}`}
+                  className="opacity-0 group-hover:opacity-100 p-2 text-[#8F8A80] hover:text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer shrink-0"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
+            </div>
           ))}
         </div>
 
@@ -347,11 +372,13 @@ function WebNavbar({
   onChange,
   onOpenLogModal,
   onOpenAccountModal,
+  onLogout,
 }: {
   active: Nav
   onChange: (n: Nav) => void
   onOpenLogModal: () => void
   onOpenAccountModal: () => void
+  onLogout: () => void
 }) {
   const { streakCount, currentUser } = useStore()
   const navItems: { id: Nav; label: string; icon: string }[] = [
@@ -431,6 +458,18 @@ function WebNavbar({
             title={`${currentUser?.name || 'Account'} — Click to manage accounts`}
           >
             {userInitial}
+          </button>
+
+          {/* Quick Logout Button */}
+          <button
+            onClick={onLogout}
+            title="Log Out / Switch Studio"
+            className="p-2.5 rounded-xl border border-[#EAE4DC] hover:border-red-200 hover:bg-red-50 text-[#8F8A80] hover:text-red-600 transition-colors cursor-pointer flex items-center justify-center"
+            aria-label="Log Out"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
           </button>
         </div>
       </div>
@@ -1177,13 +1216,15 @@ function AnalyticsContent() {
   )
 }
 
-/* ─── Profile & Account Management Screen Content ─── */
+/* ─── Profile & Account View ─── */
 function ProfileContent({
   onOpenCreateAccountModal,
   onResetData,
+  onLogout,
 }: {
   onOpenCreateAccountModal: () => void
   onResetData: () => void
+  onLogout: () => void
 }) {
   const { hobbies, streakCount, sessions, currentUser, accounts, switchAccount } = useStore()
   const totalHours = hobbies.reduce((sum, h) => sum + h.hours, 0)
@@ -1247,51 +1288,78 @@ function ProfileContent({
           >
             Export Data (JSON)
           </button>
+          <button
+            onClick={onLogout}
+            className="px-4 py-2.5 rounded-xl border border-red-200 bg-red-50/60 hover:bg-red-100/80 text-red-700 text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Log Out
+          </button>
         </div>
       </div>
 
-      {/* Account Switching (if multiple accounts exist) */}
-      {accounts.length > 1 && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#EAE4DC] shadow-sm">
-          <h2 style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-2xl text-[#1E1C19] font-normal mb-4">
-            Switch Accounts
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {accounts.map((acc) => {
-              const isCurrent = acc.id === currentUser?.id
-              return (
-                <div
-                  key={acc.id}
-                  onClick={() => switchAccount(acc.id)}
-                  className={`p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
-                    isCurrent
-                      ? 'border-[#6E8B6B] bg-[#EFF4EE]/50'
-                      : 'border-[#EAE4DC] hover:border-[#D5CEC4] bg-[#FAF7F2]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      style={{ backgroundColor: acc.avatarColor }}
-                      className="w-10 h-10 rounded-xl text-white font-bold flex items-center justify-center text-sm"
-                    >
-                      {acc.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-[#1E1C19]">{acc.name}</p>
-                      <p className="text-xs text-[#8F8A80]">Created {acc.createdAt}</p>
-                    </div>
-                  </div>
-                  {isCurrent && (
-                    <span className="text-xs font-bold text-[#6E8B6B] bg-white px-2.5 py-1 rounded-full border border-[#6E8B6B]/30">
-                      Active
-                    </span>
-                  )}
-                </div>
-              )
-            })}
+      {/* Account Switching & Management */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#EAE4DC] shadow-sm">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div>
+            <h2 style={{ fontFamily: 'DM Serif Display, Georgia, serif' }} className="text-2xl text-[#1E1C19] font-normal">
+              Switch or Manage Studios
+            </h2>
+            <p className="text-xs text-[#8F8A80] mt-0.5">
+              Select an account to switch studios or log out to return to the studio picker.
+            </p>
           </div>
+          <button
+            onClick={onLogout}
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer flex items-center gap-1.5"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Log Out Current Account
+          </button>
         </div>
-      )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {accounts.map((acc) => {
+            const isCurrent = acc.id === currentUser?.id
+            return (
+              <div
+                key={acc.id}
+                onClick={() => !isCurrent && switchAccount(acc.id)}
+                className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                  isCurrent
+                    ? 'border-[#6E8B6B] bg-[#EFF4EE]/50 ring-1 ring-[#6E8B6B]/30'
+                    : 'border-[#EAE4DC] hover:border-[#D5CEC4] bg-[#FAF7F2] cursor-pointer hover:shadow-xs'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    style={{ backgroundColor: acc.avatarColor }}
+                    className="w-10 h-10 rounded-xl text-white font-bold flex items-center justify-center text-sm"
+                  >
+                    {acc.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#1E1C19]">{acc.name}</p>
+                    <p className="text-xs text-[#8F8A80]">Created {acc.createdAt}</p>
+                  </div>
+                </div>
+                {isCurrent ? (
+                  <span className="text-xs font-bold text-[#6E8B6B] bg-white px-2.5 py-1 rounded-full border border-[#6E8B6B]/30">
+                    Active
+                  </span>
+                ) : (
+                  <span className="text-xs font-semibold text-[#6C675E] bg-white px-2.5 py-1 rounded-full border border-[#D5CEC4] hover:border-[#6E8B6B] hover:text-[#6E8B6B]">
+                    Switch →
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Danger Zone: Reset Data */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-red-200 shadow-sm">
@@ -1763,6 +1831,8 @@ function App() {
     resetToNewUser,
     accounts,
     switchAccount,
+    logout,
+    deleteAccount,
   } = useStore()
 
   const [showLogModal, setShowLogModal] = useState(false)
@@ -1853,6 +1923,7 @@ function App() {
             switchAccount(accountId)
           }}
           onCreateNew={() => setShowCreateNew(true)}
+          onDeleteAccount={deleteAccount}
         />
       )
     }
@@ -1888,6 +1959,7 @@ function App() {
         onOpenAccountModal={() => {
           setNav('profile')
         }}
+        onLogout={logout}
       />
 
       {/* Main PC Viewport Container */}
@@ -1930,6 +2002,7 @@ function App() {
           <ProfileContent
             onOpenCreateAccountModal={() => setShowAccountModal(true)}
             onResetData={resetToNewUser}
+            onLogout={logout}
           />
         )}
       </main>

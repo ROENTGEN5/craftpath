@@ -15,6 +15,8 @@ interface AppStore extends AppState {
   // Account Actions
   createAccount: (name: string, initialHobbyName?: string, initialCategory?: string, initialMilestone?: string) => void
   switchAccount: (accountId: string) => void
+  logout: () => void
+  deleteAccount: (accountId: string) => void
   resetToNewUser: () => void
 
   // Navigation & Screen Actions
@@ -38,6 +40,7 @@ interface AppStore extends AppState {
 const initialState: AppState = {
   currentUser: null,
   accounts: [],
+  accountData: {},
   hobbies: [],
   milestones: [],
   sessions: [],
@@ -115,6 +118,29 @@ export const useStore = create<AppStore>()(
           }
         }
 
+        // Save current user's data before switching
+        const current = get().currentUser
+        const currentAccountData = get().accountData || {}
+        const updatedAccountData = { ...currentAccountData }
+        if (current) {
+          updatedAccountData[current.id] = {
+            hobbies: get().hobbies,
+            milestones: get().milestones,
+            sessions: get().sessions,
+            streakCount: get().streakCount,
+            lastActiveDate: get().lastActiveDate,
+          }
+        }
+
+        // Add new account's data
+        updatedAccountData[accountId] = {
+          hobbies: newHobbies,
+          milestones: newMilestones,
+          sessions: [],
+          streakCount: 1,
+          lastActiveDate: new Date().toISOString().split('T')[0],
+        }
+
         // Sign in anonymously and save to Firestore
         ensureFirebaseAuth().then((uid) => {
           if (!uid) return
@@ -131,6 +157,7 @@ export const useStore = create<AppStore>()(
         set((state) => ({
           currentUser: newAccount,
           accounts: [...state.accounts.filter((a) => a.id !== newAccount.id), newAccount],
+          accountData: updatedAccountData,
           hobbies: newHobbies,
           milestones: newMilestones,
           sessions: [],
@@ -144,15 +171,97 @@ export const useStore = create<AppStore>()(
 
       switchAccount: (accountId) => {
         const target = get().accounts.find((a) => a.id === accountId)
-        if (target) {
-          set({ currentUser: target, isOnboarded: true, screen: 'home', activeNav: 'hobbies' })
-          get().syncWithFirestore()
+        if (!target) return
+
+        // Save current user's data first
+        const current = get().currentUser
+        const allAccountData = get().accountData || {}
+        const updatedAccountData = { ...allAccountData }
+        if (current) {
+          updatedAccountData[current.id] = {
+            hobbies: get().hobbies,
+            milestones: get().milestones,
+            sessions: get().sessions,
+            streakCount: get().streakCount,
+            lastActiveDate: get().lastActiveDate,
+          }
+        }
+
+        // Retrieve target account's data (or fall back to current if not yet indexed)
+        const targetData = updatedAccountData[accountId] || {
+          hobbies: get().hobbies,
+          milestones: get().milestones,
+          sessions: get().sessions,
+          streakCount: get().streakCount || 1,
+          lastActiveDate: get().lastActiveDate || new Date().toISOString().split('T')[0],
+        }
+
+        set({
+          currentUser: target,
+          accountData: updatedAccountData,
+          hobbies: targetData.hobbies,
+          milestones: targetData.milestones,
+          sessions: targetData.sessions,
+          streakCount: targetData.streakCount,
+          lastActiveDate: targetData.lastActiveDate,
+          isOnboarded: true,
+          screen: 'home',
+          activeNav: 'hobbies',
+        })
+
+        get().syncWithFirestore()
+      },
+
+      logout: () => {
+        const current = get().currentUser
+        const allAccountData = get().accountData || {}
+        const updatedAccountData = { ...allAccountData }
+        if (current) {
+          updatedAccountData[current.id] = {
+            hobbies: get().hobbies,
+            milestones: get().milestones,
+            sessions: get().sessions,
+            streakCount: get().streakCount,
+            lastActiveDate: get().lastActiveDate,
+          }
+        }
+
+        set({
+          currentUser: null,
+          accountData: updatedAccountData,
+          isOnboarded: false,
+          screen: 'home',
+          activeNav: 'hobbies',
+        })
+      },
+
+      deleteAccount: (accountId) => {
+        const remaining = get().accounts.filter((a) => a.id !== accountId)
+        const allAccountData = { ...(get().accountData || {}) }
+        delete allAccountData[accountId]
+
+        if (get().currentUser?.id === accountId) {
+          set({
+            currentUser: null,
+            accounts: remaining,
+            accountData: allAccountData,
+            isOnboarded: false,
+            screen: 'home',
+            activeNav: 'hobbies',
+          })
+        } else {
+          set({
+            accounts: remaining,
+            accountData: allAccountData,
+          })
         }
       },
 
       resetToNewUser: () => {
         set({
           currentUser: null,
+          accounts: [],
+          accountData: {},
           hobbies: [],
           milestones: [],
           sessions: [],

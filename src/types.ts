@@ -43,9 +43,18 @@ export interface UserAccount {
   createdAt: string;
 }
 
+export interface AccountData {
+  hobbies: Hobby[];
+  milestones: Milestone[];
+  sessions: PracticeSession[];
+  streakCount: number;
+  lastActiveDate: string | null;
+}
+
 export interface AppState {
   currentUser: UserAccount | null;
   accounts: UserAccount[];
+  accountData?: Record<string, AccountData>;
   hobbies: Hobby[];
   milestones: Milestone[];
   sessions: PracticeSession[];
