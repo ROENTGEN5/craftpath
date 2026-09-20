@@ -1,0 +1,11 @@
+{
+  "title": "CraftPath — Your Personal Hobby & Mastery Tracker",
+  "description": "Track and progress personal hobbies with goal milestones, session logs, and visual analytics to stay motivated and organized in your creative pursuits.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
